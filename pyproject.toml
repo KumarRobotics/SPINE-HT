@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "language_teaming"
+name = "spine_multi"
 version = "0.1.0"
 description = ""
 authors = [
-    { name = "Zac", email = "" }
+    { name = "Zac", email = "zacravi@seas.upenn.edu" }
 ]
 readme = "README.md"
 requires-python = ">=3.7"

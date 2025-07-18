@@ -1,0 +1,5 @@
+repositories:
+  teaming_msgs:
+    type: git
+    url: https://github.com/ZacRavichandran/teaming_msgs.git
+    version: main

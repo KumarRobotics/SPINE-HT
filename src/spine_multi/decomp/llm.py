@@ -1,11 +1,11 @@
-from openai import OpenAI
 import json
-import matplotlib.pyplot as plt
-
 from pathlib import Path
 
-from language_teaming.decomp.prompts import PROMPT
+import matplotlib.pyplot as plt
 import networkx as nx
+from openai import OpenAI
+
+from spine_multi.decomp.prompts import PROMPT
 
 
 class MissionDecomp:

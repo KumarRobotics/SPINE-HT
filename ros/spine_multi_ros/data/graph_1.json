@@ -1,0 +1,14 @@
+{
+    "objects": [
+        {"name": "house_1", "coords": ["9", "8"]},
+        {"name": "house_2", "coords": ["11", "6"]}
+    ],
+    "regions": [
+        {"name": "region_1", "coords": ["7", "6"]},
+        {"name": "region_2", "coords": ["10", "7"]},
+        {"name": "road_1", "coords": ["2", "5"], "description": "very rough terrain"}
+    ],
+    "region_connections": [["region_1", "region_2"], ["road_1", "region_1"]],
+    "object_connections": [["region_2", "house_1"], ["region_2", "house_2"]],
+    "current_location": "region_1"
+}
