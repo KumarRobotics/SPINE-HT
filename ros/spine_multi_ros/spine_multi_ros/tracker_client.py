@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+from typing import List
+
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from teaming_msgs.msg import Track
+from vision_ros2.tracker import from_track_msg
+
+from spine_multi.spine import GraphHandler
+from spine_multi.spine.util import UpdatePromptFormer
+from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+
+
+class TrackerClientComponenet:
+    def __init__(
+        self,
+        parent_node: Node,
+        graph: GraphHandler,
+        prompt_former: UpdatePromptFormer,
+        graph_viz: GraphVisualizerComponent,
+    ):
+        self._parent_node = parent_node
+        self._graph = graph
+        self._prompt_former = prompt_former
+        self._graph_viz = graph_viz
+        self._current_location = ""
+        self.tracks = {}
+        self.added_tracks = set()
+        self.updated_tracks = set()
+
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            # history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+        )
+
+        self.track_sub = parent_node.create_subscription(
+            Track, "~/tracks", self._track_cbk, qos_profile
+        )
+
+    def set_current_location(self, location: str) -> None:
+        self._current_location = location
+
+    def _track_cbk(self, track: Track) -> None:
+        parent = self._current_location
+
+        track = from_track_msg(track, parent=parent)
+
+        if track.idx in self.tracks:
+            if not self.tracks[track.idx].is_same(track, pos_tol=1):
+                self.tracks[track.idx] = track
+                self.updated_tracks.add(track.idx)
+        else:
+            self.tracks[track.idx] = track
+            self.added_tracks.add(track.idx)
+
+    def parse_track_updates(self) -> List[str]:
+        """Construct new object message in the planning API.
+        Objects are newly received tracks.
+
+        Also update graph.
+
+        Returns
+        -------
+        str
+            New object message in LLM API.
+        """
+        added_track_idx = self.added_tracks.copy()
+        self.added_tracks.clear()
+
+        if len(added_track_idx) == 0:
+            return ""
+
+        for idx in added_track_idx:
+            # tracks are received on route to current_location``
+            # self.tracks[idx].parent = self.current_location
+            track = self.tracks[idx]
+
+            node_id = f"discovered_{track.label}_{idx}"
+
+            new_node = {
+                "name": node_id,
+                "type": "object",
+                "coords": f"[{track.pose[0]:0.1f}, {track.pose[1]:0.1f}]",
+            }
+            new_connections = [[node_id, track.parent]]
+            self._prompt_former.update(
+                new_nodes=[new_node], new_connections=new_connections
+            )
+
+            # add node with connection to region where it was discovered
+            # only add x, y
+            self._graph.update_with_node(
+                node=node_id,
+                edges=[track.parent],
+                attrs={"coords": track.pose[:2], "type": "object"},
+            )

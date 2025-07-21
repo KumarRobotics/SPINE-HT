@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 
-from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import rclpy
-import rclpy.time
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
 from spine_multi_ros.action_manager import ActionManager
 from spine_multi_ros.nav_client import NavigationComponent
+from spine_multi_ros.tracker_client import TrackerClientComponenet
 from teaming_msgs.srv import Mission
-from visualization_msgs.msg import Marker
 
 from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
-from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent, GraphViz
+from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
 
 
 class SPINE_node(Node):
@@ -39,7 +38,6 @@ class SPINE_node(Node):
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
         self._nav_componenet = NavigationComponent(self, frame_id="warthog1/odom")
-
         self._graph_viz = GraphVisualizerComponent(
             parent_node=self,
             graph=self._graph,
@@ -48,6 +46,10 @@ class SPINE_node(Node):
             scale=0.5,
         )
         self._graph_viz.set_graph(self._graph)
+
+        self._tracker_componenet = TrackerClientComponenet(
+            self, self._graph, self._prompt_former, self._graph_viz
+        )
 
         self._action_manager = ActionManager(
             parent_node=self,
@@ -61,8 +63,14 @@ class SPINE_node(Node):
 
         self.mission_srv = self.create_service(Mission, "mission", self._mission_cbk)
 
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            # history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+        )
+
         self.costmap_sub = self.create_subscription(
-            OccupancyGrid, "/local_costmap/costmap", self._costmap_cbk, 10
+            OccupancyGrid, "/local_costmap/costmap", self._costmap_cbk, qos_profile
         )
 
         self.get_logger().info("SPINE node initialized")
@@ -88,115 +96,6 @@ class SPINE_node(Node):
             pos=position,
             yaw=yaw,
         )
-
-        # self.get_logger().info('processed costmap')
-
-    # def _add_frontier(self, goal: np.ndarray) -> List[Node]:
-    #     if self._frontier_extractor.filtered_costmap_with_info is None:
-    #         self.get_logger().info(f"no costmap")
-    #         return False
-    #     current_location = self._graph.get_current_location()
-    #     frontiers, is_at_obstacle = self._frontier_extractor.get_frontiers(
-    #                     proposed_frontier=goal,
-    #                     current_location=current_location,
-    #                 )
-
-    #     self._add_frontiers_to_graph(frontiers=frontiers)
-
-    #     return frontiers
-
-    # def extend_map(self, goal = np.array) -> bool:
-    #     x = float(goal[0])
-    #     y = float(goal[1])
-    #     frontiers =  self._add_frontier(np.array([x, y]).reshape(1, 2))
-
-    #     assert len(frontiers) in (0, 1)
-
-    #     if len(frontiers) == 1:
-    #         return self._goto_region(frontiers[0].id)
-    #     else:
-    #         return False
-
-    # def _add_frontiers_to_graph(
-    #     self, frontiers: np.ndarray, debug: Optional[bool] = False
-    # ) -> Tuple[List[Node], bool]:
-    #     """Compute frontiers and add them to graph.
-
-    #     Parameters
-    #     ----------
-    #     debug : Optional[bool], optional
-    #         If true, don't actually update graph. Just get
-    #         update message, by default False
-
-    #     Returns
-    #     -------
-    #     - Update message in LLM API.
-    #     - frontier (assumes one currently)
-    #     - is frontier at obstacle boundary
-    #     """
-    #     for frontier in frontiers:
-    #         region_id = frontier.id
-    #         region_loc = frontier.location
-    #         neighbor_ids = frontier.neighbors
-
-    #         print(f"adding node: {region_id}, {region_loc}, {neighbor_ids}")
-
-    #         self._graph.update_with_node(
-    #             node=region_id,
-    #             edges=neighbor_ids,
-    #             attrs={"coords": region_loc, "type": "region"},
-    #         )
-
-    #         new_node = {
-    #             "name": region_id,
-    #             "type": "region",
-    #             "coords": f"[{region_loc[0]:0.1f}, {region_loc[1]:0.1f}]",
-    #         }
-    #         new_connections = [[region_id, c] for c in neighbor_ids]
-    #         self._prompt_former.update(
-    #             new_nodes=[new_node], new_connections=new_connections
-    #         )
-
-    #     self._graph_viz.set_graph(self._graph)
-
-    # def _graph_nav_to_region(self, goal_region: str) -> bool:
-    #     current_location = self._graph.get_current_location()
-    #     if current_location == goal_region:
-    #         return True
-
-    #     path = self._graph.get_path(current_location, goal_region)
-    #     self.get_logger().info(f"navigating along path: {path}")
-
-    #     nav_success = True
-    #     for node in path:
-    #         if current_location == node:
-    #             continue
-
-    #         coords = self._graph.get_node_coord(node)
-    #         response = self._nav_componenet.navigate_and_wait(x=coords[0], y=coords[1], yaw = 0)
-
-    #         nav_success = response
-
-    #         if nav_success:
-    #             self._graph.update_location(node)
-    #         else:
-    #             self._prompt_former.update(
-    #                 freeform_updates=[
-    #                     f"could not navigate between [{self.current_location}, {node}]. Connection is likely blocked."
-    #                 ]
-    #             )
-    #             self._graph.remove_edge(current_location, node)
-    #             self._prompt_former.update(
-    #                 removed_connections=[[current_location, node]]
-    #             )
-
-    #             return False
-
-    #     return True
-
-    # def _goto_region(self, region_id: str) -> bool:
-    #     response = self._graph_nav_to_region(region_id)
-    #     return response
 
     def realize_mission(self, plan) -> bool:
         success = False
@@ -227,12 +126,11 @@ def main():
     rclpy.init()
     node = SPINE_node()
 
+    # for testing
     # node._graph.update_with_node('region_1', edges=[], attrs={"type": "region", "coords": (0, 0)})
     # node._graph.update_with_node('region_2', edges=['region_1'], attrs={"type": "region", "coords": (5, 0)})
     # node._graph.update_location('region_1')
-
     # node._graph_viz.set_graph(node._graph)
-
     # node._graph_nav_to_region('region_2')
 
     rclpy.spin(node)

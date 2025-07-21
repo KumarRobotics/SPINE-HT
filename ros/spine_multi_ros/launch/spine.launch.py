@@ -12,8 +12,6 @@ DEFAULT_GRAPH = (
 
 
 def generate_launch_description():
-    remappings = []
-
     declare_namespace_cmd = DeclareLaunchArgument(
         "namespace", default_value="", description="top level namespace"
     )
@@ -38,7 +36,7 @@ def generate_launch_description():
                 output="screen",
                 respawn_delay=2.0,
                 arguments=["--ros-args", "--log-level", log_level],
-                remappings=remappings,
+                remappings=[("~/tracks", "/grounding_dino_node/tracks")],
                 parameters=[{"init_graph": init_graph}],
             ),
         ]
