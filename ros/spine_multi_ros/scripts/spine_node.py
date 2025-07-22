@@ -4,13 +4,14 @@
 import numpy as np
 import rclpy
 from nav_msgs.msg import OccupancyGrid
+from rcl_interfaces.srv import SetParameters
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
 from spine_multi_ros.action_manager import ActionManager
 from spine_multi_ros.nav_client import NavigationComponent
 from spine_multi_ros.tracker_client import TrackerClientComponenet
-from teaming_msgs.srv import Mission
+from teaming_msgs.srv import Mission, Query
 
 from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
@@ -73,6 +74,12 @@ class SPINE_node(Node):
             OccupancyGrid, "/local_costmap/costmap", self._costmap_cbk, qos_profile
         )
 
+        self._param_client = self.create_client(
+            SetParameters, "/controller_server/set_parameters"
+        )
+
+        self._vlm_client = self.create_client(Query, "/vlm_node/query_scene")
+
         self.get_logger().info("SPINE node initialized")
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
@@ -100,7 +107,7 @@ class SPINE_node(Node):
     def realize_mission(self, plan) -> bool:
         success = False
         for function, arg in plan:
-            self.get_logger().info(f"On step: {str(function)}{str(arg)}")
+            self.get_logger().info(f"On step: {str(function)}({str(arg)})")
             if function in self._behavior_library:
                 success = self._behavior_library[function](arg)
 

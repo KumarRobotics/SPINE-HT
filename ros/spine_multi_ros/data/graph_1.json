@@ -1,14 +1,13 @@
 {
     "objects": [
-        {"name": "house_1", "coords": ["9", "8"]},
-        {"name": "house_2", "coords": ["11", "6"]}
+        {"name": "building_1", "coords": ["-3", "-20"]}
     ],
     "regions": [
-        {"name": "region_1", "coords": ["7", "6"]},
-        {"name": "region_2", "coords": ["10", "7"]},
-        {"name": "road_1", "coords": ["2", "5"], "description": "very rough terrain"}
+        {"name": "region_1", "coords": ["0", "0"]},
+        {"name": "region_2", "coords": ["-1", "-13"]},
+        {"name": "region_3", "coords": ["-2", "-15"]}
     ],
-    "region_connections": [["region_1", "region_2"], ["road_1", "region_1"]],
-    "object_connections": [["region_2", "house_1"], ["region_2", "house_2"]],
+    "region_connections": [["region_1", "region_2"], ["region_2", "region_3"]],
+    "object_connections": [["region_3", "building_1"]],
     "current_location": "region_1"
 }
