@@ -122,21 +122,29 @@ class SPINE_node(Node):
     def realize_mission(self, plan: List[Tuple[str, str]]) -> Tuple[bool, bool]:
         success = False
         done = False
+        should_break = False
+
         for function, arg in plan:
             self.get_logger().info(f"[spine node] On step: {str(function)}({str(arg)})")
-            if function in self._behavior_library:
-                success = self._behavior_library[function](arg)
+            assert function in self._behavior_library, f"{function} is not in behavior library"
 
-                if function == "answer":
-                    self.get_logger().info(
-                        f"[spine node] On step: {str(function)}({str(arg)})"
-                    )
+            success = self._behavior_library[function](arg)
 
-                    done = True
-                    return success, done
+            if function == "answer":
+                done = True
+                should_break = True
 
-                if function == "replan":
-                    return success, done
+            if function == "replan":
+                should_break = True
+
+            self.get_logger().info(
+                f"[spine node] Step : {str(function)}({str(arg)}) finished with done: {done}, should_break: {should_break}, success: {success}"
+            )
+
+
+            if should_break:
+                return success, done
+
 
         return success, done
 
@@ -153,6 +161,7 @@ class SPINE_node(Node):
             success, done = self.realize_mission(spine_resp["plan"])
 
             if done or not success:
+                self.get_logger().info(f"[spine node]: breaking mission cbk with done: {done}, sucess: {success}")
                 break
 
             # flush track queue from planning iteration
