@@ -3,9 +3,8 @@
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from teaming_msgs.msg import Nav
-
 from spine_multi_ros.spine_multi_ros.nav_manager import NavigationComponent
+from teaming_msgs.msg import Nav
 
 
 # Example usage: Embedding in another node

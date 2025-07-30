@@ -6,14 +6,13 @@ from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from rclpy.client import Client
 from rclpy.node import Node
+from spine_multi_ros.nav_manager import NavigationComponent
+from teaming_msgs.srv import Query
+
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
-from spine_multi.spine.mapping.frontiers import Node as FrontierNode
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
-from teaming_msgs.srv import Query
-
-from spine_multi_ros.nav_manager import NavigationComponent
 
 
 class ActionManager:
@@ -67,9 +66,9 @@ class ActionManager:
 
     def _inspect_object(self, node_name: str, vlm_query: str) -> bool:
         nearest_region = self._graph.get_neighbors(node_name)
-        assert len(
-            nearest_region
-        ) == 1, f"objects should only have 1 neighbor. Got: {nearest_region}"
+        assert (
+            len(nearest_region) == 1
+        ), f"objects should only have 1 neighbor. Got: {nearest_region}"
 
         nearest_region = nearest_region[0]
 
@@ -168,7 +167,9 @@ class ActionManager:
             region_loc = frontier.location
             neighbor_ids = frontier.neighbors
 
-            self._parent_node.get_logger().info(f"[action manager] adding node: {region_id}, {region_loc}, {neighbor_ids}")
+            self._parent_node.get_logger().info(
+                f"[action manager] adding node: {region_id}, {region_loc}, {neighbor_ids}"
+            )
 
             self._graph.update_with_node(
                 node=region_id,
@@ -229,13 +230,12 @@ class ActionManager:
 
         return True
 
-
     def _graph_nav_to_object(self, goal_object: str) -> bool:
         nearest_region = self._graph.get_neighbors(goal_object)
 
-        assert len(
-            nearest_region
-        ) == 1, f"objects should only have 1 neighbor. Got: {nearest_region}"
+        assert (
+            len(nearest_region) == 1
+        ), f"objects should only have 1 neighbor. Got: {nearest_region}"
 
         nearest_region = nearest_region[0]
 

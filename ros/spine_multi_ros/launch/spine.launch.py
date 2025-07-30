@@ -28,11 +28,7 @@ def generate_launch_description():
     log_level = LaunchConfiguration("log_level")
     init_graph = LaunchConfiguration("init_graph")
 
-
-    spine_path = get_package_share_directory('spine_multi_ros')
-
-    graph_path = PathJoinSubstitution([spine_path, 'data', init_graph])
-
+    spine_path = get_package_share_directory("spine_multi_ros")
 
     load_nodes = GroupAction(
         actions=[

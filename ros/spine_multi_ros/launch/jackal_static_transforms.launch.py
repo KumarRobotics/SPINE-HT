@@ -28,29 +28,49 @@ def generate_launch_description():
         actions=[
             PushRosNamespace(LaunchConfiguration("robot_namespace")),
             Node(
-                package='tf2_ros',
-                executable='static_transform_publisher',
+                package="tf2_ros",
+                executable="static_transform_publisher",
                 arguments=[
-                    '--x', '0', '--y', '0', '--z', '0',
-                    '--yaw', '0', '--pitch', '0', '--roll',
-                    '0', '--frame-id', 'map', '--child-frame-id', 'odom']
+                    "--x",
+                    "0",
+                    "--y",
+                    "0",
+                    "--z",
+                    "0",
+                    "--yaw",
+                    "0",
+                    "--pitch",
+                    "0",
+                    "--roll",
+                    "0",
+                    "--frame-id",
+                    "map",
+                    "--child-frame-id",
+                    "odom",
+                ],
             ),
             Node(
-                package='tf2_ros',
-                executable='static_transform_publisher',
+                package="tf2_ros",
+                executable="static_transform_publisher",
                 arguments=[
-                    '--x', '0', '--y', '0', '--z', '0',
-                    '--yaw', '0', '--pitch', '0', '--roll',
-                    '0', '--frame-id', 'base_link', '--child-frame-id', 'zed_camera_link']
-            ),
-            # Node(
-            #     package='tf2_ros',
-            #     executable='static_transform_publisher',
-            #     arguments=[
-            #         '--x', '-0.01', '--y', '0.06', '--z', '0.015',
-            #         '--yaw', '-1.571', '--pitch', '0', '--roll',
-            #         '-1.571', '--frame-id', 'zed_camera_link', '--child-frame-id', 'zed_left_camera_optical_frame']
-            # )
+                    "--x",
+                    "0",
+                    "--y",
+                    "0",
+                    "--z",
+                    "0",
+                    "--yaw",
+                    "0",
+                    "--pitch",
+                    "0",
+                    "--roll",
+                    "0",
+                    "--frame-id",
+                    "base_link",
+                    "--child-frame-id",
+                    "zed_camera_link",
+                ],
+            )
         ],
     )
 

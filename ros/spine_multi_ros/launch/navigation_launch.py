@@ -39,7 +39,6 @@ def generate_launch_description():
     log_level = LaunchConfiguration("log_level")
     cmd_vel_topic = LaunchConfiguration("cmd_vel_topic")
 
-
     lifecycle_nodes = [
         "controller_server",
         "smoother_server",
@@ -120,22 +119,17 @@ def generate_launch_description():
     declare_log_level_cmd = DeclareLaunchArgument(
         "log_level", default_value="info", description="log level"
     )
-    
+
     declare_cmd_vel_topic_cmd = DeclareLaunchArgument(
         "cmd_vel_topic", default_value="/cmd_vel_nav", description="cmd_vel_topic"
     )
 
+    remappings = [("cmd_vel_nav", "/test_topic")]  # cmd_vel_topic)]
 
-    remappings = [('cmd_vel_nav', "/test_topic")] # cmd_vel_topic)]
-
-
-    cmd_vel_out = LaunchConfiguration('cmd_vel_topic')
-
+    cmd_vel_out = LaunchConfiguration("cmd_vel_topic")
 
     remappings = []  # ('/tf', 'tf'), ('/tf_static', 'tf_static')]
-    remappings = [('/cmd_vel_nav', cmd_vel_out)]
-
-
+    remappings = [("/cmd_vel_nav", cmd_vel_out)]
 
     load_nodes = GroupAction(
         condition=IfCondition(PythonExpression(["not ", use_composition])),
@@ -215,7 +209,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=["--ros-args", "--log-level", log_level],
-                remappings= [("cmd_vel", "cmd_vel_nav")] + remappings,
+                remappings=[("cmd_vel", "cmd_vel_nav")] + remappings,
             ),
             Node(
                 package="nav2_collision_monitor",

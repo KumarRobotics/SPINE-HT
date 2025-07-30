@@ -5,11 +5,12 @@ from typing import List
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
+from teaming_msgs.msg import Track
+from vision_ros2.tracker import from_track_msg
+
 from spine_multi.spine import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
-from teaming_msgs.msg import Track
-from vision_ros2.tracker import from_track_msg
 
 
 class TrackerClientComponenet:

@@ -134,7 +134,7 @@ class NavigationComponent:
         # param.value.type = ParameterValue.double_value
         param.value.type = 3
         param.value.double_value = float(tolerance_radians)
-        
+
         self._parent_node.get_logger().info(f"formed msg")
 
         # Create request
@@ -144,17 +144,8 @@ class NavigationComponent:
         # Call service
         resp = self._param_client.call(request, timeout_sec=2.0)
         self._parent_node.get_logger().info(f"got resp: {resp}")
- 
+
         return resp.results[0].successful if resp else False
-
-
-        future = self._param_client.call_async(request)
-
-        rclpy.spin_until_future_complete(self._parent_node, future)
-
-        result = future.result().results[0].successful
-        self._parent_node.get_logger(f"setting yaw result: {result}")
-        return result
 
     def _feedback_callback(self, feedback_msg):
         """Handle feedback from navigation"""

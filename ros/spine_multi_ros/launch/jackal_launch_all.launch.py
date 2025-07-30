@@ -3,11 +3,8 @@
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import SetRemap
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, PushRosNamespace
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -32,15 +29,15 @@ def generate_launch_description():
     launch_nav2 = PathJoinSubstitution(
         [pkg_spine_multi, "launch", "navigation_launch.py"]
     )
-    nav2_config = PathJoinSubstitution(
-        [pkg_spine_multi, "config", "nav2_jackal.yaml"]
-    )
+    nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", "nav2_jackal.yaml"])
     jackal_static_transforms = PathJoinSubstitution(
         [pkg_spine_multi, "launch", "jackal_static_transforms.launch.py"]
     )
 
     vision_pkg = get_package_share_directory("vision_ros2")
-    launch_vision = PathJoinSubstitution([vision_pkg, "launch", "vision_jackal.launch.py"])
+    launch_vision = PathJoinSubstitution(
+        [vision_pkg, "launch", "vision_jackal.launch.py"]
+    )
 
     # args for launching
     namespace = LaunchConfiguration("robot_namespace")
@@ -56,7 +53,7 @@ def generate_launch_description():
                 launch_arguments=[
                     # ("use_sim_time", use_sim_time),
                     # ("robot_namespace", namespace)
-                ]
+                ],
             ),
             IncludeLaunchDescription(
                 launch_nav2,
@@ -74,9 +71,10 @@ def generate_launch_description():
                 package="spine_multi_ros",  # Replace with your package name
                 executable="twist_converter.py",
                 name="twist_converter",
-                remappings=[("/cmd_vel", "/j100_0000/autonomous/cmd_vel")],  # Remap output
-            )
-
+                remappings=[
+                    ("/cmd_vel", "/j100_0000/autonomous/cmd_vel")
+                ],  # Remap output
+            ),
         ],
     )
 

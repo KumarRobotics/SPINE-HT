@@ -11,15 +11,15 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
+from spine_multi_ros.action_manager import ActionManager
+from spine_multi_ros.nav_manager import NavigationComponent
+from spine_multi_ros.tracker_client import TrackerClientComponenet
+from teaming_msgs.srv import Mission, Query
+
 from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
-from teaming_msgs.srv import Mission, Query
-
-from spine_multi_ros.action_manager import ActionManager
-from spine_multi_ros.nav_manager import NavigationComponent
-from spine_multi_ros.tracker_client import TrackerClientComponenet
 
 
 class SPINE_node(Node):
@@ -126,7 +126,9 @@ class SPINE_node(Node):
 
         for function, arg in plan:
             self.get_logger().info(f"[spine node] On step: {str(function)}({str(arg)})")
-            assert function in self._behavior_library, f"{function} is not in behavior library"
+            assert (
+                function in self._behavior_library
+            ), f"{function} is not in behavior library"
 
             success = self._behavior_library[function](arg)
 
@@ -141,10 +143,8 @@ class SPINE_node(Node):
                 f"[spine node] Step : {str(function)}({str(arg)}) finished with done: {done}, should_break: {should_break}, success: {success}"
             )
 
-
             if should_break:
                 return success, done
-
 
         return success, done
 
@@ -161,7 +161,9 @@ class SPINE_node(Node):
             success, done = self.realize_mission(spine_resp["plan"])
 
             if done or not success:
-                self.get_logger().info(f"[spine node]: breaking mission cbk with done: {done}, sucess: {success}")
+                self.get_logger().info(
+                    f"[spine node]: breaking mission cbk with done: {done}, sucess: {success}"
+                )
                 break
 
             # flush track queue from planning iteration
