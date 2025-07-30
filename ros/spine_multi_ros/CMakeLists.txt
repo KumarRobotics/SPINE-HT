@@ -31,6 +31,7 @@ tf2_ros
 install(PROGRAMS
   scripts/twist_converter.py
   scripts/spine_node.py
+  scripts/nav_client.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

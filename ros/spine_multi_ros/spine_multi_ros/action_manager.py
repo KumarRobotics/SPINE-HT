@@ -4,14 +4,16 @@ import numpy as np
 import rclpy
 from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
+from rclpy.client import Client
 from rclpy.node import Node
-from spine_multi_ros.nav_client import NavigationComponent
-from teaming_msgs.srv import Query
-
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
+from spine_multi.spine.mapping.frontiers import Node as FrontierNode
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
-from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent, GraphViz
+from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from teaming_msgs.srv import Query
+
+from spine_multi_ros.nav_manager import NavigationComponent
 
 
 class ActionManager:
@@ -22,28 +24,35 @@ class ActionManager:
         graph_viz: GraphVisualizerComponent,
         prompt_former: UpdatePromptFormer,
         nav_componenet: NavigationComponent,
+        vlm_client: Client,
+        frontier_extractor: FrontierExtractor,
     ):
         self._parent_node = parent_node
         self._graph = graph
-        self._frontier_extractor = FrontierExtractor(graph)
+        self._frontier_extractor = frontier_extractor
         self._graph_viz = graph_viz
         self._prompt_former = prompt_former
         self._nav_componenet = nav_componenet
+        self._vlm_client = vlm_client
 
     def construct_behavior_library(self) -> Dict[str, Callable]:
         return {
-            "extend_map": self.extend_map,
+            "extend_map": self._extend_map,
             "goto": self._goto_region,
             "inspect": self._inspect_object_wrapper,
-            "replan": lambda x: x,
-            "clarify": lambda x: x,
-            "answer": lambda x: x,
+            "explore_region": lambda x: True,
+            "replan": lambda x: True,
+            "clarify": lambda x: True,
+            "answer": lambda x: True,
         }
 
-    def extend_map(self, goal: np.array) -> bool:
+    def _extend_map(self, goal: np.array) -> bool:
         x = float(goal[0])
         y = float(goal[1])
-        frontiers = self._add_frontier(np.array([x, y]).reshape(1, 2))
+        success, frontiers = self._add_frontier(np.array([x, y]).reshape(1, 2))
+
+        if not success:
+            return False
 
         assert len(frontiers) in (0, 1)
 
@@ -60,12 +69,21 @@ class ActionManager:
         nearest_region = self._graph.get_neighbors(node_name)
         assert len(
             nearest_region
-        ), f"objects should only have 1 neighbor. Got: {nearest_region}"
+        ) == 1, f"objects should only have 1 neighbor. Got: {nearest_region}"
 
         nearest_region = nearest_region[0]
-        nav_success = self._goto_region(nearest_region)
 
-        self._parent_node.get_logger().info(f"finished nav with success: {nav_success}")
+        self._parent_node.get_logger().info(
+            f"[action manager] [inspect] inspect object region nav: {nearest_region} from {self._graph.get_current_location()}"
+        )
+
+        # nav_success = self._goto_region(nearest_region)
+
+        nav_success = self._graph_nav_to_object(node_name)
+
+        self._parent_node.get_logger().info(
+            f"[action manager] [inspect] finished nav with success: {nav_success}"
+        )
 
         if not nav_success:
             self._prompt_former.update(
@@ -76,9 +94,13 @@ class ActionManager:
             )
             return False
 
+        self._parent_node.get_logger().info(f"[action manager] [inspect] querying vlm")
+
         success, response = self._query_vlm(vlm_query)
 
-        self._parent_node.get_logger().info(f"done vlm query: {response}")
+        self._parent_node.get_logger().info(
+            f"[action manager] done vlm query: {response}"
+        )
 
         if success:
             self._prompt_former.update(
@@ -87,23 +109,33 @@ class ActionManager:
             return True
         else:
             # TODO figure out what to do here
-            pass
+            self._prompt_former.update(freeform_updates=["unable to inspect object"])
+            return True
 
     def _query_vlm(self, query: str) -> Tuple[bool, str]:
         request = Query.Request()
         request.query = ascii(query)
 
         try:
-            response = self._parent_node._vlm_client.call(request)
+            self._parent_node.get_logger().info(
+                f"[action manager] formed request vlm query: {request}"
+            )
+            response_future = self._vlm_client.call_async(request)
+            rclpy.spin_until_future_complete(self._parent_node, response_future)
+
+            response = response_future.result()
+            self._parent_node.get_logger().info(
+                f"[action manager] got vlm query: {response}"
+            )
             return response.success, response.answer
         except Exception as e:
             self._parent_node.get_logger().error(f"Service call failed: {e}")
             return False, ""
 
-    def _add_frontier(self, goal: np.ndarray) -> List[Node]:
+    def _add_frontier(self, goal: np.ndarray) -> Tuple[bool, List[Node]]:
         if self._frontier_extractor.filtered_costmap_with_info is None:
             self._parent_node.get_logger().info(f"no costmap")
-            return False
+            return False, None
         current_location = self._graph.get_current_location()
         frontiers, is_at_obstacle = self._frontier_extractor.get_frontiers(
             proposed_frontier=goal,
@@ -112,7 +144,7 @@ class ActionManager:
 
         self._add_frontiers_to_graph(frontiers=frontiers)
 
-        return frontiers
+        return True, frontiers
 
     def _add_frontiers_to_graph(
         self, frontiers: list[Node], debug: Optional[bool] = False
@@ -136,7 +168,7 @@ class ActionManager:
             region_loc = frontier.location
             neighbor_ids = frontier.neighbors
 
-            print(f"adding node: {region_id}, {region_loc}, {neighbor_ids}")
+            self._parent_node.get_logger().info(f"[action manager] adding node: {region_id}, {region_loc}, {neighbor_ids}")
 
             self._graph.update_with_node(
                 node=region_id,
@@ -166,7 +198,7 @@ class ActionManager:
 
         nav_success = True
         for node in path:
-            self._parent_node.get_logger().info(f"[graph nav] On node: {node}")
+            self._parent_node.get_logger().info(f"[graph nav] Next node: {node}")
             if current_location == node:
                 continue
 
@@ -177,10 +209,11 @@ class ActionManager:
 
             nav_success = response
 
-            self._parent_node.get_logger().info(f"done")
+            self._parent_node.get_logger().info(f"[action manager] graph nav step done")
 
             if nav_success:
                 self._graph.update_location(node)
+                self._prompt_former.update(location_updates=[node])
             else:
                 self._prompt_former.update(
                     freeform_updates=[
@@ -196,8 +229,16 @@ class ActionManager:
 
         return True
 
+
     def _graph_nav_to_object(self, goal_object: str) -> bool:
         nearest_region = self._graph.get_neighbors(goal_object)
+
+        assert len(
+            nearest_region
+        ) == 1, f"objects should only have 1 neighbor. Got: {nearest_region}"
+
+        nearest_region = nearest_region[0]
+
         region_coords = self._graph.get_node_coord(nearest_region)
         object_coords = self._graph.get_node_coord(goal_object)
 
@@ -207,7 +248,7 @@ class ActionManager:
         success_region = self._graph_nav_to_region(nearest_region)
 
         response = self._nav_componenet.navigate_and_wait(
-            x=region_coords[0], y=region_coords[1], yaw=angle
+            x=region_coords[0], y=region_coords[1], yaw=angle, check_yaw=True
         )
 
         return response

@@ -1,0 +1,17 @@
+{
+    "objects": [
+        {"name": "desk_1", "coords": ["0", "-3"]},
+        {"name": "chair_1", "coords": ["3", "-5"]}
+    ],
+    "regions": [
+        {"name": "region_1", "coords": ["0", "0"]},
+        {"name": "region_2", "coords": ["3", "0"]},
+        {"name": "region_3", "coords": ["5", "-1"]}
+    ],
+    "region_connections": [
+        ["region_1", "region_2"], 
+        ["region_2", "region_3"]],
+    "object_connections": [["region_3", "chair_1"],
+            ["region_1", "desk_1"]],
+    "current_location": "region_1"
+}

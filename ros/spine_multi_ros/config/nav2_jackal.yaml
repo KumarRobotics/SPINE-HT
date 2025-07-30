@@ -1,11 +1,11 @@
 bt_navigator:
   ros__parameters:
     enable_stamped_cmd_vel: true
-    global_frame: warthog1/odom
-    robot_base_frame: warthog1/base_link
-    odom_topic: /warthog1/platform/odom
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /dlio/odom_node/odom
     bt_loop_duration: 10
-    default_server_timeout: 20
+    default_server_timeout: 500
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
     navigators: ["navigate_to_pose", "navigate_through_poses"]
@@ -36,24 +36,24 @@ controller_server:
     general_goal_checker:
       stateful: true
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 2.0
-      yaw_goal_tolerance: 2.0
+      xy_goal_tolerance: 1.0
+      yaw_goal_tolerance: 3.1
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.05
       batch_size: 2000
-      ax_max: 3.0
-      ax_min: -3.0
-      ay_max: 3.0
-      az_max: 3.5
-      vx_std: 0.2
-      vy_std: 0.2
-      wz_std: 0.4
-      vx_max: 1.5
+      ax_max: 20.0
+      ax_min: -20.0
+      ay_max: 10.0
+      az_max: 10.5
+      vx_std: 0.8
+      vy_std: 0.8
+      wz_std: 0.8
+      vx_max: 10.5
       vx_min: -0.35
-      vy_max: 1.0
-      wz_max: 1.9
+      vy_max: 9.0
+      wz_max: 9.9
       # ax_max: 3.0
       # ax_min: -3.0
       # ay_max: 3.0
@@ -68,7 +68,7 @@ controller_server:
       iteration_count: 1
       prune_distance: 1.7
       transform_tolerance: 0.1
-      temperature: 0.3
+      temperature: 0.8
       gamma: 0.015
       motion_model: "DiffDrive"
       visualize: true
@@ -137,46 +137,46 @@ controller_server:
 local_costmap:
   local_costmap:
     ros__parameters:
-      sensor_frame: 'warthog1/lidar_link'
+      sensor_frame: 'os_lidar'
       enable_stamped_cmd_vel: true
       initial_transform_timeout: 20.0
       transform_tolerance: 10.0
       update_frequency: 5.0
       publish_frequency: 2.0
-      global_frame: warthog1/odom
-      robot_base_frame: warthog1/base_link
+      global_frame: map
+      robot_base_frame: base_link
       rolling_window: true
-      width: 50
-      height: 50
-      resolution: 0.1
-      footprint: "[ [1, 1], [1, -1], [-1, -1], [-1, 1] ]"
+      width: 20
+      height: 20
+      resolution: 0.05
+      footprint: "[ [0.25, 0.25], [0.25, -0.25], [-0.25, -0.25], [-0.25, 0.25] ]"
       # footprint: "[ [0.55, 0.45], [0.55, -0.45], [-0.55, -0.45], [-0.55, 0.45] ]"
       always_send_full_costmap: true
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 4.0
-        inflation_radius: 1.5
+        cost_scaling_factor: 0.25
+        inflation_radius: 0.4
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: true
         publish_voxel_map: true
-        origin_z: 0.0
-        z_resolution: 0.25
+        origin_z: -0.15 # 0.0
+        z_resolution: 0.1
         z_voxels: 16
         max_obstacle_height: 10.0
         mark_threshold: 1
         observation_sources: pointcloud
         pointcloud:
-          topic: /warthog1/sensors/ouster/points
-          sensor_frame: 'warthog1/lidar_link'
+          topic: /ouster/points
+          sensor_frame: os_lidar
           max_obstacle_height: 10.0
           clearing: true
           marking: true
           data_type: "PointCloud2"
-          raytrace_max_range: 30.0
+          raytrace_max_range: 10.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
+          obstacle_max_range: 8.0
           obstacle_min_range: 0.0
 
 global_costmap:
@@ -185,18 +185,18 @@ global_costmap:
       enable_stamped_cmd_vel: true
       update_frequency: 1.0
       publish_frequency: 1.0
-      global_frame: warthog1/odom
-      robot_base_frame: warthog1/base_link
-      sensor_frame: 'warthog1/lidar_link'
-      footprint: "[ [1, 1], [1, -1], [-1, -1], [-1, 1] ]"
-      # footprint: "[ [0.55, 0.45], [0.55, -0.45], [-0.55, -0.45], [-0.55, 0.45] ]"
-      resolution: 0.5
+      global_frame: map
+      robot_base_frame: base_link
+      sensor_frame: os_lidar
+      footprint: "[ [0.25, 0.25], [0.25, -0.25], [-0.25, -0.25], [-0.25, 0.25] ]"
+ 
+      resolution: 0.1
 
-      rolling_window: false
-      width: 200          # 20m at 0.06 resolution
-      height: 200         # 20m at 0.06 resolution  
-      origin_x: -100.0     # Center the map
-      origin_y: -100.0     # Center the map
+      rolling_window: true
+      width: 50          # 20m at 0.06 resolution
+      height: 50         # 20m at 0.06 resolution  
+      origin_x: 0.0     # Center the map
+      origin_y: 0.0     # Center the map
 
       track_unknown_space: true
       always_send_full_costmap: true
@@ -206,15 +206,15 @@ global_costmap:
         enabled: true
         observation_sources: pointcloud
         pointcloud:
-          topic: /warthog1/sensors/ouster/points
+          topic: /ouster/points
           max_obstacle_height: 10.0
-          min_obstacle_height: 0.1
+          min_obstacle_height: -1.0
           clearing: true
           marking: true
           data_type: "PointCloud2"
-          raytrace_max_range: 30.0
+          raytrace_max_range: 25.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
+          obstacle_max_range: 20.0
           obstacle_min_range: 0.0
           expected_update_rate: 0.0
           observation_persistence: 0.0
@@ -224,8 +224,8 @@ global_costmap:
       #   map_subscribe_transient_local: true
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 4.0
-        inflation_radius: 1.5
+        cost_scaling_factor: 0.5
+        inflation_radius: 0.4
 
 
 map_server:
@@ -282,15 +282,14 @@ behavior_server:
     assisted_teleop:
       plugin: "nav2_behaviors::AssistedTeleop"
     global_frame: map
-    local_frame: warthog1/odom
-    robot_base_frame: warthog1/base_link
+    local_frame: odom
+    robot_base_frame: base_link
     transform_tolerance: 0.1
     enable_stamped_cmd_vel: true
     simulate_ahead_time: 2.0
     max_rotational_vel: 1.0
     min_rotational_vel: 0.2
     rotational_acc_lim: 0.5
-
 
 waypoint_follower:
   ros__parameters:
@@ -310,11 +309,11 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [1.0, 0.0, 1.0]
-    min_velocity: [-1.0, 0.0, -1.0]
-    max_accel: [1.0, 0.0, 1.0]
-    max_decel: [-1.0, 0.0, -1.0]
-    odom_topic: "/warthog1/platform/odom"
+    max_velocity: [3.0, 0.0, 3.0]
+    min_velocity: [-3.0, 0.0, -3.0]
+    max_accel: [3.0, 0.0, 3.0]
+    max_decel: [-3.0, 0.0, -3.0]
+    odom_topic: /dlio/odom_node/odom
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0
@@ -326,8 +325,8 @@ collision_monitor:
   ros__parameters:
     enable: False
     enable_stamped_cmd_vel: true
-    base_frame_id: "warthog1/base_link"
-    odom_frame_id: "warthog1/odom"
+    base_frame_id: base_link
+    odom_frame_id: odom
     cmd_vel_in_topic: "cmd_vel_smoothed"
     cmd_vel_out_topic: "cmd_vel"
     state_topic: "collision_monitor_state"
@@ -350,7 +349,7 @@ collision_monitor:
     observation_sources: ["pointcloud"]
     pointcloud:
       type: "scan"
-      topic: "/warthog1/sensors/ouster/points"
+      topic: "/ouster/points"
       min_height: 0.15
       max_height: 2.0
       enabled: True
@@ -366,8 +365,8 @@ docking_server:
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
     max_retries: 3
-    base_frame: "warthog1/base_link"
-    fixed_frame: "warthog1/odom"
+    base_frame: "base_link"
+    fixed_frame: map
     dock_backwards: false
     dock_prestaging_tolerance: 0.5
 

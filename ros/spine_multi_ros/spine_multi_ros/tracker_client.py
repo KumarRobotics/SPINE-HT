@@ -2,14 +2,14 @@
 
 from typing import List
 
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from teaming_msgs.msg import Track
-from vision_ros2.tracker import from_track_msg
-
 from spine_multi.spine import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from teaming_msgs.msg import Track
+from vision_ros2.tracker import from_track_msg
 
 
 class TrackerClientComponenet:
@@ -35,15 +35,22 @@ class TrackerClientComponenet:
             depth=10,
         )
 
+        track_cbk_group = ReentrantCallbackGroup()
         self.track_sub = parent_node.create_subscription(
-            Track, "~/tracks", self._track_cbk, qos_profile
+            Track,
+            "~/tracks",
+            self._track_cbk,
+            qos_profile,
+            callback_group=track_cbk_group,
         )
 
     def set_current_location(self, location: str) -> None:
         self._current_location = location
 
     def _track_cbk(self, track: Track) -> None:
-        parent = self._current_location
+        # self._parent_node.get_logger().info("got track")
+        # parent = self._current_location
+        parent = self._graph.get_current_location()
 
         track = from_track_msg(track, parent=parent)
 
@@ -68,6 +75,8 @@ class TrackerClientComponenet:
         """
         added_track_idx = self.added_tracks.copy()
         self.added_tracks.clear()
+
+        self._parent_node.get_logger().info(f"Have {len(added_track_idx)} new tracks")
 
         if len(added_track_idx) == 0:
             return ""
@@ -96,3 +105,5 @@ class TrackerClientComponenet:
                 edges=[track.parent],
                 attrs={"coords": track.pose[:2], "type": "object"},
             )
+
+            self._graph_viz.set_graph(self._graph)

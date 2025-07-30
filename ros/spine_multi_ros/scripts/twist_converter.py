@@ -20,7 +20,7 @@ class TwistConverter(Node):
 
         # Publish Twist
         self.publisher = self.create_publisher(
-            Twist, f"/cmd_vel", 10  # Will be remapped to /warthog1/cmd_vel
+            TwistStamped, f"/cmd_vel", 10  # Will be remapped to /warthog1/cmd_vel
         )
 
         self.get_logger().info(
@@ -28,11 +28,13 @@ class TwistConverter(Node):
         )
 
     def twist_stamped_callback(self, msg):
+        self.publisher.publish(msg)
+
         # Extract the twist part from TwistStamped
-        twist_msg = Twist()
-        twist_msg.linear = msg.twist.linear
-        twist_msg.angular = msg.twist.angular
-        self.publisher.publish(twist_msg)
+        # twist_msg = Twist()
+        # twist_msg.linear = msg.twist.linear
+        # twist_msg.angular = msg.twist.angular
+        #self.publisher.publish(twist_msg)
 
 
 def main():

@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 
+from typing import List, Tuple
 
 import numpy as np
 import rclpy
 from nav_msgs.msg import OccupancyGrid
 from rcl_interfaces.srv import SetParameters
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
-from spine_multi_ros.action_manager import ActionManager
-from spine_multi_ros.nav_client import NavigationComponent
-from spine_multi_ros.tracker_client import TrackerClientComponenet
-from teaming_msgs.srv import Mission, Query
-
 from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from teaming_msgs.srv import Mission, Query
+
+from spine_multi_ros.action_manager import ActionManager
+from spine_multi_ros.nav_manager import NavigationComponent
+from spine_multi_ros.tracker_client import TrackerClientComponenet
 
 
 class SPINE_node(Node):
@@ -26,23 +29,24 @@ class SPINE_node(Node):
 
         self.declare_parameters(
             namespace="",
-            parameters=[
-                ("init_graph", ""),
-            ],
+            parameters=[("init_graph", ""), ("target_frame", "odom")],
         )
         init_graph = self.get_parameter("init_graph").get_parameter_value().string_value
+        target_frame = (
+            self.get_parameter("target_frame").get_parameter_value().string_value
+        )
 
-        self.get_logger().info(f"using graph: {init_graph}")
+        self.get_logger().info(f"[spine node] using graph: {init_graph}")
 
         self._graph = GraphHandler(init_graph)
         self._spine = SPINE(self._graph)
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
-        self._nav_componenet = NavigationComponent(self, frame_id="warthog1/odom")
+        self._nav_component = NavigationComponent(self, frame_id=target_frame)
         self._graph_viz = GraphVisualizerComponent(
             parent_node=self,
             graph=self._graph,
-            target_frame="warthog1/odom",
+            target_frame=target_frame,
             topic_name="graph_viz",
             scale=0.5,
         )
@@ -52,12 +56,20 @@ class SPINE_node(Node):
             self, self._graph, self._prompt_former, self._graph_viz
         )
 
+        vlm_cbk_group = ReentrantCallbackGroup()
+        self._vlm_client = self.create_client(
+            Query, "/vlm_node/query_scene", callback_group=vlm_cbk_group
+        )
+        self._vlm_client.wait_for_service()
+
         self._action_manager = ActionManager(
             parent_node=self,
             graph=self._graph,
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
-            nav_componenet=self._nav_componenet,
+            nav_componenet=self._nav_component,
+            vlm_client=self._vlm_client,
+            frontier_extractor=self._frontier_extractor,
         )
 
         self._behavior_library = self._action_manager.construct_behavior_library()
@@ -70,20 +82,23 @@ class SPINE_node(Node):
             depth=10,
         )
 
+        costmap_cbk_group = ReentrantCallbackGroup()
         self.costmap_sub = self.create_subscription(
-            OccupancyGrid, "/local_costmap/costmap", self._costmap_cbk, qos_profile
+            OccupancyGrid,
+            "/local_costmap/costmap",
+            self._costmap_cbk,
+            qos_profile,
+            callback_group=costmap_cbk_group,
         )
 
         self._param_client = self.create_client(
             SetParameters, "/controller_server/set_parameters"
         )
 
-        self._vlm_client = self.create_client(Query, "/vlm_node/query_scene")
-
-        self.get_logger().info("SPINE node initialized")
+        self.get_logger().info("[spine node] initialized")
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
-        # self.get_logger().info('get costmap')
+        # self.get_logger().info('[spine node] get costmap')
         pose_in_map = costmap_msg.info.origin
         position = np.array([pose_in_map.position.x, pose_in_map.position.y])
         yaw = Rotation.from_quat(
@@ -104,23 +119,46 @@ class SPINE_node(Node):
             yaw=yaw,
         )
 
-    def realize_mission(self, plan) -> bool:
+    def realize_mission(self, plan: List[Tuple[str, str]]) -> Tuple[bool, bool]:
         success = False
+        done = False
         for function, arg in plan:
-            self.get_logger().info(f"On step: {str(function)}({str(arg)})")
+            self.get_logger().info(f"[spine node] On step: {str(function)}({str(arg)})")
             if function in self._behavior_library:
                 success = self._behavior_library[function](arg)
 
-        return success
+                if function == "answer":
+                    self.get_logger().info(
+                        f"[spine node] On step: {str(function)}({str(arg)})"
+                    )
 
-    def _mission_cbk(self, request, response):
-        self.get_logger().info(request.spec)
+                    done = True
+                    return success, done
 
-        spine_resp, success, logs = self._spine.request(request.spec)
+                if function == "replan":
+                    return success, done
 
-        self.get_logger().info(str(spine_resp))
+        return success, done
 
-        self.realize_mission(spine_resp["plan"])
+    def _mission_cbk(
+        self, request: Mission.Request, response: Mission.Response
+    ) -> Mission.Response:
+        self.get_logger().info(f"[spine node] got mission: {request.spec}")
+
+        prompt = request.spec
+
+        while True:
+            spine_resp, success, logs = self._spine.request(prompt)
+            self.get_logger().info(str(spine_resp))
+            success, done = self.realize_mission(spine_resp["plan"])
+
+            if done or not success:
+                break
+
+            # flush track queue from planning iteration
+            self._tracker_componenet.parse_track_updates()
+            prompt = self._prompt_former.form_updates()
+            self.get_logger().info(f"[spine node] finished planning iteration")
 
         response.resp = str(spine_resp["plan"])
 
@@ -128,19 +166,12 @@ class SPINE_node(Node):
 
 
 def main():
-    import time
-
     rclpy.init()
     node = SPINE_node()
 
-    # for testing
-    # node._graph.update_with_node('region_1', edges=[], attrs={"type": "region", "coords": (0, 0)})
-    # node._graph.update_with_node('region_2', edges=['region_1'], attrs={"type": "region", "coords": (5, 0)})
-    # node._graph.update_location('region_1')
-    # node._graph_viz.set_graph(node._graph)
-    # node._graph_nav_to_region('region_2')
-
-    rclpy.spin(node)
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    executor.spin()
 
     rclpy.shutdown()
 

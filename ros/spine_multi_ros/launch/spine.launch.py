@@ -3,15 +3,16 @@
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 
 DEFAULT_GRAPH = (
-    "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/graph_1.json"
+    "/home/dcist/dcist_ws/src/spine-multi/ros/spine_multi_ros/data/perch.json"
 )
 
 
 def generate_launch_description():
+
     declare_namespace_cmd = DeclareLaunchArgument(
         "namespace", default_value="", description="top level namespace"
     )
@@ -26,6 +27,12 @@ def generate_launch_description():
 
     log_level = LaunchConfiguration("log_level")
     init_graph = LaunchConfiguration("init_graph")
+
+
+    spine_path = get_package_share_directory('spine_multi_ros')
+
+    graph_path = PathJoinSubstitution([spine_path, 'data', init_graph])
+
 
     load_nodes = GroupAction(
         actions=[

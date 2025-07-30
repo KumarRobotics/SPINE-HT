@@ -8,9 +8,11 @@ Panels:
         - /TF1/Frames1
         - /TF1/Tree1
         - /Map1/Topic1
-        - /lidar1
+        - /Controller1
         - /lidar1/Topic1
         - /Marker1
+        - /Marker1/Status1
+        - /Marker1/Topic1
       Splitter Ratio: 0.5833333134651184
     Tree Height: 528
   - Class: rviz_common/Selection
@@ -507,21 +509,21 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 1.7322784662246704
-        Min Value: -1.5198699235916138
+        Max Value: 1.1000308990478516
+        Min Value: 1.1000308990478516
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: AxisColor
+      Color Transformer: Intensity
       Decay Time: 0
       Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 1.0027682781219482
+      Max Intensity: 1658
       Min Color: 0; 0; 0
-      Min Intensity: 0
+      Min Intensity: 3
       Name: lidar
       Position Transformer: XYZ
       Selectable: true
@@ -547,7 +549,7 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /graph_viz
       Value: true
   Enabled: true
@@ -587,7 +589,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0.044199276715517044
+      Angle: -1.595803141593933
       Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -597,11 +599,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 92.7279052734375
+      Scale: 62.34137725830078
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: -0.12822726368904114
-      Y: 2.08915638923645
+      X: -0.7468276619911194
+      Y: -0.7614825367927551
     Saved: ~
 Window Geometry:
   Displays:

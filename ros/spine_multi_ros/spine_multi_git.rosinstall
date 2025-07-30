@@ -1,0 +1,9 @@
+repositories:
+  teaming_msgs:
+    type: git
+    url: git@github.com:ZacRavichandran/teaming_msgs.git
+    version: main
+  vision_ros2:
+    type: git 
+    url: git@github.com:ZacRavichandran/vision-ros2.git
+    version: main
