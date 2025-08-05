@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 from ament_index_python.packages import get_package_share_directory
+from launch_ros.actions import Node, PushRosNamespace
+from launch_ros.substitutions import FindPackageShare
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, PushRosNamespace
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -81,6 +82,7 @@ def generate_launch_description():
                 package="spine_multi_ros",  # Replace with your package name
                 executable="twist_converter.py",
                 name="twist_converter",
+                parameters=[{"publish_stamped": False}],
                 remappings=[("/cmd_vel", "/warthog1/cmd_vel")],  # Remap output
             ),
         ],

@@ -7,14 +7,13 @@ Panels:
         - /Global Options1
         - /TF1/Frames1
         - /TF1/Tree1
-        - /Map1/Topic1
-        - /Controller1/Local Costmap1
-        - /lidar1/Topic1
-        - /detection_viz1/Topic1
+        - /Global Planner1/Global Costmap1
+        - /semantic_graph1
+        - /semantic_graph1/Topic1
         - /tracks1/Topic1
         - /detections1/Topic1
       Splitter Ratio: 0.5833333134651184
-    Tree Height: 498
+    Tree Height: 276
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -87,29 +86,25 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_link:
+        warthog1/base_link:
           Value: true
-        map:
+        warthog1/geofog_link:
           Value: true
-        odom:
+        warthog1/gps_link:
           Value: true
-        os_imu:
+        warthog1/imu_link:
           Value: true
-        os_lidar:
+        warthog1/lidar_link:
           Value: true
-        os_sensor:
+        warthog1/multisense_back_optical_frame:
           Value: true
-        zed_camera_center:
+        warthog1/multisense_front_optical_frame:
           Value: true
-        zed_camera_link:
+        warthog1/odom:
           Value: true
-        zed_left_camera_frame:
+        warthog1/zoom_cam_link:
           Value: true
-        zed_left_camera_optical_frame:
-          Value: true
-        zed_right_camera_frame:
-          Value: true
-        zed_right_camera_optical_frame:
+        warthog1/zoom_cam_optical_frame:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -117,21 +112,20 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        map:
-          odom:
-            base_link:
-              os_imu:
-                {}
-              os_lidar:
-                {}
-              zed_camera_link:
-                zed_camera_center:
-                  zed_left_camera_frame:
-                    zed_left_camera_optical_frame:
-                      {}
-                  zed_right_camera_frame:
-                    zed_right_camera_optical_frame:
-                      {}
+        warthog1/odom:
+          warthog1/base_link:
+            warthog1/geofog_link:
+              {}
+            warthog1/gps_link:
+              {}
+            warthog1/imu_link:
+              {}
+            warthog1/lidar_link:
+              {}
+            warthog1/multisense_back_optical_frame:
+              {}
+            warthog1/multisense_front_optical_frame:
+              {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -166,29 +160,6 @@ Visualization Manager:
         Value: /mobile_base/sensors/bumper_pointcloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
-    - Alpha: 1
-      Binary representation: false
-      Binary threshold: 100
-      Class: rviz_default_plugins/Map
-      Color Scheme: map
-      Draw Behind: true
-      Enabled: true
-      Name: Map
-      Topic:
-        Depth: 1
-        Durability Policy: Transient Local
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /local_costmap/costmap
-      Update Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /local_costmap/costmap_updates
-      Use Timestamp: false
       Value: true
     - Alpha: 1
       Class: nav2_rviz_plugins/ParticleCloud
@@ -509,8 +480,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 1.7322784662246704
-        Min Value: -1.5198699235916138
+        Max Value: 7.781431674957275
+        Min Value: -2.1465930938720703
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -535,7 +506,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /ouster/points
+        Value: /warthog1/sensors/ouster/points
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
@@ -549,23 +520,9 @@ Visualization Manager:
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /graph_viz
       Value: true
-    - Class: rviz_default_plugins/Image
-      Enabled: false
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: detection_viz
-      Normalize Range: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /grounding_dino_node/detection_img
-      Value: false
     - Class: rviz_default_plugins/Marker
       Enabled: false
       Name: tracks
@@ -592,10 +549,38 @@ Visualization Manager:
         Reliability Policy: Best Effort
         Value: /grounding_dino_node/detections_marker
       Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: RGB
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /warthog1/sensors/zoom_cam/image_raw
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: detections_image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /grounding_dino_node/detection_img
+      Value: true
   Enabled: true
   Global Options:
-    Background Color: 48; 48; 48
-    Fixed Frame: map
+    Background Color: 255; 255; 255
+    Fixed Frame: warthog1/odom
     Frame Rate: 30
   Name: root
   Tools:
@@ -629,45 +614,52 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -1.6058003902435303
-      Class: rviz_default_plugins/TopDownOrtho
+      Class: rviz_default_plugins/Orbit
+      Distance: 44.18811798095703
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Focal Point:
+        X: 0.2136288285255432
+        Y: 0.6271700263023376
+        Z: 1.0611193180084229
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 44.74317932128906
+      Pitch: 0.9747973680496216
       Target Frame: <Fixed Frame>
-      Value: TopDownOrtho (rviz_default_plugins)
-      X: -0.0397983156144619
-      Y: -1.2870569229125977
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 2.027386426925659
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
   Docking:
-    collapsed: true
+    collapsed: false
   Height: 2022
   Hide Left Dock: false
-  Hide Right Dock: true
+  Hide Right Dock: false
   Navigation 2:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000003e900000746fc020000000cfb0000001200530065006c0065006300740069006f006e00000001e10000009b000000b200fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000100044006900730070006c0061007900730100000070000002640000018600fffffffb00000018004e0061007600690067006100740069006f006e0020003201000002e0000004d60000034800fffffffb0000001e005200650061006c00730065006e0073006500430061006d00650072006100000002c6000000c10000002800fffffffb0000001a0064006500740065006300740069006f006e005f00760069007a00000005b5000002010000002800fffffffb0000000a0049006d006100670065010000072b00000028000000000000000000000001000001e000000746fc0200000005fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730000000070000001bf0000013800fffffffb0000000e0044006f0063006b0069006e0067000000023b0000036c0000026500fffffffb0000001000530065006c006500630074006f007200000005b3000002030000016800fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000003490000074600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000003e900000746fc0200000010fb0000001200530065006c0065006300740069006f006e00000001e10000009b000000b200fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000100044006900730070006c0061007900730100000070000001860000018600fffffffb00000018004e0061007600690067006100740069006f006e002000320100000202000003480000034800fffffffb0000001e005200650061006c00730065006e0073006500430061006d00650072006100000002c6000000c10000002800fffffffb0000001a0064006500740065006300740069006f006e005f00760069007a01000005560000010e0000000000000000fb0000000a0049006d006100670065010000072b000000280000000000000000fb0000000a0049006d00610067006501000006c5000000f10000000000000000fb0000000a0049006d00610067006501000005c6000001f00000000000000000fb000000060052004700420100000556000000c10000002800fffffffb000000200064006500740065006300740069006f006e0073005f0069006d0061006700650100000623000001930000002800ffffff00000001000001e000000746fc0200000005fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730100000070000003610000013800fffffffb0000000e0044006f0063006b0069006e006701000003dd000002650000026500fffffffb0000001000530065006c006500630074006f0072010000064e000001680000016800fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d006501000000000000045000000000000000000000089b0000074600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  RGB:
+    collapsed: false
   RealsenseCamera:
     collapsed: false
   Selection:
     collapsed: false
   Selector:
-    collapsed: true
+    collapsed: false
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
-  Width: 1854
+    collapsed: false
+  Width: 3708
   X: 132
   Y: 64
-  detection_viz:
+  detections_image:
     collapsed: false

@@ -11,16 +11,24 @@ class TwistConverter(Node):
 
         # Get namespace parameter
         self.declare_parameter("namespace", "warthog1")
+        self.declare_parameter("publish_stamped", True)
+
         namespace = self.get_parameter("namespace").get_parameter_value().string_value
+        self._publish_stamped = self.get_parameter("publish_stamped").get_parameter_value().bool_value
+
 
         # Subscribe to TwistStamped
         self.subscription = self.create_subscription(
             TwistStamped, f"/cmd_vel_nav", self.twist_stamped_callback, 10
         )
 
+
+        self.get_logger().info(f"pub stamped: {self._publish_stamped}")
+
         # Publish Twist
+        pub_type = TwistStamped if self._publish_stamped else Twist
         self.publisher = self.create_publisher(
-            TwistStamped, f"/cmd_vel", 10  # Will be remapped to /warthog1/cmd_vel
+            pub_type, f"/cmd_vel", 10  # Will be remapped to /warthog1/cmd_vel
         )
 
         self.get_logger().info(
@@ -28,13 +36,16 @@ class TwistConverter(Node):
         )
 
     def twist_stamped_callback(self, msg):
-        self.publisher.publish(msg)
+
+        if self._publish_stamped:
+            self.publisher.publish(msg)
+        else:
 
         # Extract the twist part from TwistStamped
-        # twist_msg = Twist()
-        # twist_msg.linear = msg.twist.linear
-        # twist_msg.angular = msg.twist.angular
-        # self.publisher.publish(twist_msg)
+            twist_msg = Twist()
+            twist_msg.linear = msg.twist.linear
+            twist_msg.angular = msg.twist.angular
+            self.publisher.publish(twist_msg)
 
 
 def main():

@@ -1,0 +1,18 @@
+spine_multi_node:
+  ros__parameters:
+    test_param: true
+    namespace: ""
+    init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json
+    robots:
+      robot1:
+        name: jackal_1
+        namespace: /j100_0000
+        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json
+        nav_target_frame: map
+        graph_viz_topic: /graph_viz
+        track_topic: /grounding_dino_node/tracks
+        navigation_action_server: /navigate_to_pose
+        nav_status_topic: /navigation_status
+        vlm_query_client_name: /vlm_node/query_scene
+        local_costmap_topic: /local_costmap/costmap
+        controller_param_server_topic: /controller_server/set_parameters
