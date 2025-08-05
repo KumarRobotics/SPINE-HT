@@ -39,7 +39,13 @@ ros2 launch spine_multi_ros sim_launch_all.launch.py
 ```
 
 
-### Now launch SPINE 
+### Now launch SPINE with a path to the initial semantic graph
 ```sh
-ros2 launch spine_multi_ros spine.launch.py
+ros2 launch spine_multi_ros spine.launch.py init_graph:=<PATH_TO_GRAPH>
+```
+
+### (optional) Rviz
+```sh
+cd <SPINE-MULTI-DIR>
+rviz2 -d ./ros/spine_multi_ros/rviz/sim.rviz
 ```
