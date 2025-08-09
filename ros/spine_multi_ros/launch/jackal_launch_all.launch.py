@@ -63,18 +63,37 @@ def generate_launch_description():
                     ("namespace", namespace),
                     ("use_lifecycle_mgr", "false"),
                     ("use_namespace", "true"),
-                    ("cmd_vel_topic", "/j100_0000/platform/cmd_vel"),
+                    ("cmd_vel_topic", "platform/cmd_vel"),
                 ],
             ),
-            IncludeLaunchDescription(launch_vision, launch_arguments=[]),
+            IncludeLaunchDescription(launch_vision, launch_arguments=[
+                ('input_rgb_topic', 'zed/left/image_rect_color'),
+                ('input_depth_topic', 'zed/depth/depth_registered'),
+                ('camera_info_topic', 'zed/depth/camera_info')
+                ]),
             Node(
                 package="spine_multi_ros",  # Replace with your package name
                 executable="twist_converter.py",
                 name="twist_converter",
                 remappings=[
-                    ("/cmd_vel", "/j100_0000/autonomous/cmd_vel")
+                    ("cmd_vel", "autonomous/cmd_vel")
                 ],  # Remap output
             ),
+            Node(
+                package="safety_controller",
+                executable="safety_controller",
+                name="safety_controller"
+            ),
+            Node(
+                package="spine_multi_ros",
+                executable="nav_service_translator.py",
+                name="nav_service_translator"
+            ),
+            Node(
+                package="spine_multi_ros",
+                executable="vlm_service_translator.py",
+                name="vlm_service_translator"
+            )
         ],
     )
 

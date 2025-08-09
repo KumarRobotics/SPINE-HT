@@ -27,6 +27,7 @@ def generate_launch_description():
 
     log_level = LaunchConfiguration("log_level")
     init_graph = LaunchConfiguration("init_graph")
+    namespace = LaunchConfiguration('namespace')
 
     spine_path = get_package_share_directory("spine_multi_ros")
 
@@ -36,10 +37,11 @@ def generate_launch_description():
                 package="spine_multi_ros",
                 executable="spine_node.py",
                 name="spine_node",
+                namespace=namespace,
                 output="screen",
                 respawn_delay=2.0,
                 arguments=["--ros-args", "--log-level", log_level],
-                remappings=[("~/tracks", "/grounding_dino_node/tracks")],
+                remappings=[("tracks", "grounding_dino_node/tracks")],  # asume same ns
                 parameters=[{"init_graph": init_graph}],
             ),
         ]

@@ -4,15 +4,14 @@ import numpy as np
 import rclpy
 from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
-from rclpy.client import Client
 from rclpy.node import Node
-from spine_multi_ros.nav_manager import NavigationComponent
-from teaming_msgs.srv import Query
-
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+
+from spine_multi_ros.nav_manager import NavigationComponentTopic
+from spine_multi_ros.vlm_manager import VLMManager
 
 
 class ActionManager:
@@ -22,8 +21,8 @@ class ActionManager:
         graph: GraphHandler,
         graph_viz: GraphVisualizerComponent,
         prompt_former: UpdatePromptFormer,
-        nav_componenet: NavigationComponent,
-        vlm_client: Client,
+        nav_componenet: NavigationComponentTopic,
+        vlm_client: VLMManager,
         frontier_extractor: FrontierExtractor,
     ):
         self._parent_node = parent_node
@@ -39,7 +38,8 @@ class ActionManager:
             "extend_map": self._extend_map,
             "goto": self._goto_region,
             "inspect": self._inspect_object_wrapper,
-            "explore_region": lambda x: True,
+            "explore_region": lambda x: self._goto_region(x[0]),
+            "map_region": lambda x: self._goto_region(x[0]),
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
@@ -60,8 +60,7 @@ class ActionManager:
         else:
             return False
 
-    def _inspect_object_wrapper(self, args) -> bool:
-        name, query = args
+    def _inspect_object_wrapper(self, name: str, query: str) -> bool:
         return self._inspect_object(name, query)
 
     def _inspect_object(self, node_name: str, vlm_query: str) -> bool:
@@ -95,7 +94,7 @@ class ActionManager:
 
         self._parent_node.get_logger().info(f"[action manager] [inspect] querying vlm")
 
-        success, response = self._query_vlm(vlm_query)
+        success, response = self._vlm_client._query_vlm(vlm_query)
 
         self._parent_node.get_logger().info(
             f"[action manager] done vlm query: {response}"
@@ -110,26 +109,6 @@ class ActionManager:
             # TODO figure out what to do here
             self._prompt_former.update(freeform_updates=["unable to inspect object"])
             return True
-
-    def _query_vlm(self, query: str) -> Tuple[bool, str]:
-        request = Query.Request()
-        request.query = ascii(query)
-
-        try:
-            self._parent_node.get_logger().info(
-                f"[action manager] formed request vlm query: {request}"
-            )
-            response_future = self._vlm_client.call_async(request)
-            rclpy.spin_until_future_complete(self._parent_node, response_future)
-
-            response = response_future.result()
-            self._parent_node.get_logger().info(
-                f"[action manager] got vlm query: {response}"
-            )
-            return response.success, response.answer
-        except Exception as e:
-            self._parent_node.get_logger().error(f"Service call failed: {e}")
-            return False, ""
 
     def _add_frontier(self, goal: np.ndarray) -> Tuple[bool, List[Node]]:
         if self._frontier_extractor.filtered_costmap_with_info is None:

@@ -19,7 +19,7 @@ class TwistConverter(Node):
 
         # Subscribe to TwistStamped
         self.subscription = self.create_subscription(
-            TwistStamped, f"/cmd_vel_nav", self.twist_stamped_callback, 10
+            TwistStamped, f"cmd_vel_nav", self.twist_stamped_callback, 10
         )
 
 
@@ -28,7 +28,7 @@ class TwistConverter(Node):
         # Publish Twist
         pub_type = TwistStamped if self._publish_stamped else Twist
         self.publisher = self.create_publisher(
-            pub_type, f"/cmd_vel", 10  # Will be remapped to /warthog1/cmd_vel
+            TwistStamped, f"cmd_vel", 10  # Will be remapped to /warthog1/cmd_vel
         )
 
         self.get_logger().info(

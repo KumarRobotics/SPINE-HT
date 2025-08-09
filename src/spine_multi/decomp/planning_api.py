@@ -1,10 +1,10 @@
-def ugv_navigate(
-    region_node: str, ugv_type: str = ["either", "jackal", "husky"]
-) -> bool:
+def ugv_navigate(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> bool:
     """Navigate to a node in the semantic graph. This MUST refer to an existing node."""
 
 
-def ugv_inspect(object_node: str, query: str) -> str:
+def ugv_inspect(
+    object_node: str, query: str, ugv_type=["any", "jackal", "husky"]
+) -> str:
     """Inspect `object_node` for a specific attribute `query`. The query is processed by a vision language model (VLA), and the VLA's answer will be provided."""
 
 
@@ -13,7 +13,7 @@ def ugv_map(region_node: str, ugv_type: str = ["either", "jackal", "husky"]) -> 
 
 
 def ugv_explore_to(
-    x: float, y: float, ugv_type: str = ["either", "jackal", "husky"]
+    x: float, y: float, ugv_type: str = ["any", "jackal", "husky"]
 ) -> str:
     """Explore an (x, y) coordinate to expand the semantic map. Returns map updates."""
 

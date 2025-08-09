@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from collections.abc import Sequence
 from typing import List, Tuple
 
 import numpy as np
@@ -11,15 +12,18 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
-from spine_multi_ros.action_manager import ActionManager
-from spine_multi_ros.nav_manager import NavigationComponent
-from spine_multi_ros.tracker_client import TrackerClientComponenet
-from teaming_msgs.srv import Mission, Query
-
 from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from spine_multi_ros.action_manager import ActionManager
+from spine_multi_ros.nav_manager import (
+    NavigationComponentAction,
+    NavigationComponentTopic,
+)
+from spine_multi_ros.tracker_client import TrackerClientComponenet
+from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
+from teaming_msgs.srv import Mission, Query
 
 
 class SPINE_node(Node):
@@ -29,12 +33,17 @@ class SPINE_node(Node):
 
         self.declare_parameters(
             namespace="",
-            parameters=[("init_graph", ""), ("target_frame", "odom")],
+            parameters=[
+                ("init_graph", ""),
+                ("target_frame", "odom"),
+                ("use_actions", False),
+            ],
         )
         init_graph = self.get_parameter("init_graph").get_parameter_value().string_value
         target_frame = (
             self.get_parameter("target_frame").get_parameter_value().string_value
         )
+        use_actions = self.get_parameter("use_actions").get_parameter_value().bool_value
 
         self.get_logger().info(f"[spine node] using graph: {init_graph}")
 
@@ -42,7 +51,14 @@ class SPINE_node(Node):
         self._spine = SPINE(self._graph)
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
-        self._nav_component = NavigationComponent(self, frame_id=target_frame)
+
+        if use_actions:
+            self._nav_component = NavigationComponentAction(self, frame_id=target_frame)
+            self._vlm_manager = VLMManagerAction(parent_node=self)
+        else:
+            self._nav_component = NavigationComponentTopic(self)
+            self._vlm_manager = VLMManagerTopic(parent_node=self)
+
         self._graph_viz = GraphVisualizerComponent(
             parent_node=self,
             graph=self._graph,
@@ -56,11 +72,16 @@ class SPINE_node(Node):
             self, self._graph, self._prompt_former, self._graph_viz
         )
 
-        vlm_cbk_group = ReentrantCallbackGroup()
-        self._vlm_client = self.create_client(
-            Query, "/vlm_node/query_scene", callback_group=vlm_cbk_group
-        )
-        self._vlm_client.wait_for_service()
+        self.get_logger().info("[spine node] tracker init")
+
+
+        # vlm_cbk_group = ReentrantCallbackGroup()
+        # self._vlm_client = self.create_client(
+        #     Query, "vlm_node/query_scene", callback_group=vlm_cbk_group
+        # )
+        # self._vlm_client.wait_for_service()
+
+        self.get_logger().info("[spine node] vlm init")
 
         self._action_manager = ActionManager(
             parent_node=self,
@@ -68,13 +89,15 @@ class SPINE_node(Node):
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
             nav_componenet=self._nav_component,
-            vlm_client=self._vlm_client,
+            vlm_client=self._vlm_manager, #@ vlm_client,
             frontier_extractor=self._frontier_extractor,
         )
 
         self._behavior_library = self._action_manager.construct_behavior_library()
 
-        self.mission_srv = self.create_service(Mission, "mission", self._mission_cbk)
+        self.mission_srv = self.create_service(
+            Mission, "spine/mission", self._mission_cbk
+        )
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -85,14 +108,15 @@ class SPINE_node(Node):
         costmap_cbk_group = ReentrantCallbackGroup()
         self.costmap_sub = self.create_subscription(
             OccupancyGrid,
-            "/local_costmap/costmap",
+            "local_costmap/costmap",
             self._costmap_cbk,
             qos_profile,
             callback_group=costmap_cbk_group,
         )
 
+        # TODO should remove
         self._param_client = self.create_client(
-            SetParameters, "/controller_server/set_parameters"
+            SetParameters, "controller_server/set_parameters"
         )
 
         self.get_logger().info("[spine node] initialized")
@@ -130,7 +154,13 @@ class SPINE_node(Node):
                 function in self._behavior_library
             ), f"{function} is not in behavior library"
 
-            success = self._behavior_library[function](arg)
+            # hacky error checking, but we assume arg is sequence
+            self.get_logger().info(
+                f"[spine ndoe] arg {arg} is {isinstance(arg, Sequence)}"
+            )
+            arg = arg if isinstance(arg, (list, tuple)) else [arg]
+            self.get_logger().info(f"[spine ndoe] passing {arg} ")
+            success = self._behavior_library[function](*arg)
 
             if function == "answer":
                 done = True

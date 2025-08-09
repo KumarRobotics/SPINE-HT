@@ -26,7 +26,6 @@ def generate_launch_description():
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
-            PushRosNamespace(LaunchConfiguration("robot_namespace")),
             Node(
                 package="tf2_ros",
                 executable="static_transform_publisher",

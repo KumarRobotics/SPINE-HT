@@ -2,17 +2,33 @@ spine_multi_node:
   ros__parameters:
     test_param: true
     namespace: ""
-    init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json
+    init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/simple_map.json
     robots:
-      robot1:
+      robot2:
         name: jackal_1
-        namespace: /j100_0000
-        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json
+        namespace: /j100_0002
+        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/simple_map.json
         nav_target_frame: map
-        graph_viz_topic: /graph_viz
-        track_topic: /grounding_dino_node/tracks
-        navigation_action_server: /navigate_to_pose
-        nav_status_topic: /navigation_status
-        vlm_query_client_name: /vlm_node/query_scene
-        local_costmap_topic: /local_costmap/costmap
-        controller_param_server_topic: /controller_server/set_parameters
+        graph_viz_topic: map
+        track_topic: /j100_0002/grounding_dino_node/tracks
+        local_costmap_topic: /j100_0002/local_costmap/costmap
+        vlm_request: /j100_0002/vlm_request
+        vlm_response: /j100_0002/vlm_response
+        vlm_ack: /j100_0002/vlm_ack
+        navigation_request: /j100_0002/navigation_request
+        navigation_status: /j100_0002/navigation_status
+        navigation_ack: /j100_0002/navigation_ack
+      robot1:
+        name: jackal_2
+        namespace: /j100_0003
+        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/simple_map.json
+        nav_target_frame: map
+        graph_viz_topic: map
+        track_topic: /j100_0003/grounding_dino_node/tracks
+        local_costmap_topic: /j100_0003/local_costmap/costmap
+        vlm_request: /j100_0003/vlm_request
+        vlm_response: /j100_0003/vlm_response
+        vlm_ack: /j100_0003/vlm_ack
+        navigation_request: /j100_0003/navigation_request
+        navigation_status: /j100_0003/navigation_status
+        navigation_ack: /j100_0003/navigation_ack

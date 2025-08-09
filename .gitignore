@@ -5,8 +5,6 @@ tests/
 log/
 build/
 .vscode/
-<<<<<<< Updated upstream
-=======
 *rviz
 *json
->>>>>>> Stashed changes
+notebooks

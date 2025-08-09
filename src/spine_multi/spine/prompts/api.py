@@ -8,7 +8,7 @@ def remove_nodes(removed_nodes: List[str]) -> None:
     """Remove `nodes` and associated edges from graph."""
 
 
-def add_nodes(new_nodes: Dict[str, str]) -> None:
+def add_nodes(new_nodes: List[Dict[str, str]]) -> None:
     """Add nodes to graph. Each node is represented as a dictionary."""
 
 

@@ -17,7 +17,6 @@ def generate_launch_description():
             Node(
                 package="spine_multi_ros",
                 executable="spine_multi_node.py",
-                # namespace="spine_multi_node",
                 name="spine_multi_node",
                 output="screen",
                 parameters=[robot_config],

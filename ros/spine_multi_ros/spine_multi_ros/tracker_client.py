@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
-from typing import List
+from typing import List, Optional
 
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from teaming_msgs.msg import Track
-from vision_ros2.tracker import from_track_msg
-
 from spine_multi.spine import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from teaming_msgs.msg import Track
+from vision_ros2.tracker import from_track_msg
 
 
 class TrackerClientComponenet:
@@ -20,6 +19,7 @@ class TrackerClientComponenet:
         graph: GraphHandler,
         prompt_former: UpdatePromptFormer,
         graph_viz: GraphVisualizerComponent,
+        track_topic: Optional[str] = "tracks",
     ):
         self._parent_node = parent_node
         self._graph = graph
@@ -39,7 +39,7 @@ class TrackerClientComponenet:
         track_cbk_group = ReentrantCallbackGroup()
         self.track_sub = parent_node.create_subscription(
             Track,
-            "~/tracks",
+            track_topic,
             self._track_cbk,
             qos_profile,
             callback_group=track_cbk_group,

@@ -168,14 +168,23 @@ def parse_graph(
         c2 = G.nodes[edge[1]]["coords"]
         # print(f"edge: {edge}, c1, c2: {c1}, {c2}")
         dist = np.linalg.norm(np.array(c1) - np.array(c2))
-        G.add_edge(edge[0], edge[1], type="object", weight=dist)
+
+        kwargs = {"type": "object", "weight": dist}
+        if len(edge) == 3:
+            kwargs["description"] = edge[3]
+        G.add_edge(edge[0], edge[1], **kwargs)
 
     for edge in data["region_connections"]:
         c1 = G.nodes[edge[0]]["coords"]
         c2 = G.nodes[edge[1]]["coords"]
         # print(f"edge: {edge}, c1, c2: {c1}, {c2}")
         dist = np.linalg.norm(np.array(c1) - np.array(c2))
-        G.add_edge(edge[0], edge[1], type="region", weight=dist)
+
+        kwargs = {"type": "region", "weight": dist}
+        if len(edge) == 3:
+            kwargs["description"] = edge[2]
+
+        G.add_edge(edge[0], edge[1], **kwargs)
 
     return G, str(data)
 
@@ -245,7 +254,7 @@ class GraphHandler:
             return False
         return True
 
-    def to_json_str(self) -> str:
+    def to_json_str(self, include_type: Optional[bool] = True) -> str:
         added_edges = set()
         graph_dict = {
             "objects": [],
@@ -259,16 +268,30 @@ class GraphHandler:
             coords = f"[{coords[0]:0.1f}, {coords[1]:0.1f}]"  # TODO best way?
             graph_dict[f"{node_type}s"].append({"name": node, "coords": coords})
 
-            for neighbor in self.get_neighbors(node):
-                # Double check node types
-                if self.graph.nodes[neighbor]["type"] == "object":
-                    node_type = "object"
+        # TODO need to check this change b/c it will cause
+        # hard to catch issues on the llm planning if wrong
+        for edge in self.graph.edges:
+            edge_dict = self.graph.edges[edge]
 
-                if tuple(sorted((node, neighbor))) not in added_edges:
-                    graph_dict[f"{node_type}_connections"].append(
-                        sorted([node, neighbor])
-                    )
-                    added_edges.add(tuple(sorted((node, neighbor))))
+            edge_type = edge_dict["type"]
+
+            entry = f"{edge[0]}, {edge[1]}"
+
+            if "description" in edge_dict and include_type:
+                entry += f", description: {edge_dict['description']}"
+
+            graph_dict[f"{edge_type}_connections"].append(entry)
+
+            # for neighbor in self.get_neighbors(node):
+            #     # Double check node types
+            #     if self.graph.nodes[neighbor]["type"] == "object":
+            #         node_type = "object"
+
+            #     if tuple(sorted((node, neighbor))) not in added_edges:
+            #         graph_dict[f"{node_type}_connections"].append(
+            #             sorted([node, neighbor])
+            #         )
+            #         added_edges.add(tuple(sorted((node, neighbor))))
 
         if self._current_location != None:
             graph_dict["current_location"] = self._current_location
