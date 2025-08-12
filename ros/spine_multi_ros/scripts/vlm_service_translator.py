@@ -70,7 +70,7 @@ class VLMServiceTranslator(Node):
 
         self._vlm_query_dict[req.idx] = VLMReq(idx=req.idx, ack=False)
 
-        success, resp = self._query_vlm(req.query)
+        success, resp = self._query_vlm(req.query.data)
 
         resp_msg = VLMResponse()
         resp_msg.idx = req.idx
