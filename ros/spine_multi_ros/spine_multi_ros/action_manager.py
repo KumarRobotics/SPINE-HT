@@ -13,11 +13,11 @@ from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
 from spine_multi_ros.nav_manager import NavigationComponentTopic
 from spine_multi_ros.vlm_manager import VLMManager
 
-
 class ActionManager:
     def __init__(
         self,
         parent_node: Node,
+        robot_name: str,
         graph: GraphHandler,
         graph_viz: GraphVisualizerComponent,
         prompt_former: UpdatePromptFormer,
@@ -26,6 +26,7 @@ class ActionManager:
         frontier_extractor: FrontierExtractor,
     ):
         self._parent_node = parent_node
+        self._robot_name = robot_name
         self._graph = graph
         self._frontier_extractor = frontier_extractor
         self._graph_viz = graph_viz
@@ -35,19 +36,22 @@ class ActionManager:
 
     def construct_behavior_library(self) -> Dict[str, Callable]:
         return {
-            "extend_map": self._extend_map,
+            "extend_map": self._explore_to,
             "goto": self._goto_region,
             "inspect": self._inspect_object_wrapper,
             "explore_region": lambda x: self._goto_region(x[0]),
-            "map_region": lambda x: self._goto_region(x[0]),
+            "map_region": self._goto_region,  # TODO placeholder
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
         }
 
-    def _extend_map(self, goal: np.array) -> bool:
-        x = float(goal[0])
-        y = float(goal[1])
+    def _log_info(self, msg):
+        self._parent_node.get_logger().info(f"[action manager] [{self._robot_name}] {msg}")
+
+    def _explore_to(self, goal_x: float, goal_y: float) -> bool:
+        x = float(goal_x)
+        y = float(goal_y)
         success, frontiers = self._add_frontier(np.array([x, y]).reshape(1, 2))
 
         if not success:
@@ -71,16 +75,14 @@ class ActionManager:
 
         nearest_region = nearest_region[0]
 
-        self._parent_node.get_logger().info(
-            f"[action manager] [inspect] inspect object region nav: {nearest_region} from {self._graph.get_current_location()}"
-        )
+        self._log_info("inspect object region nav: {nearest_region} from {self._graph.get_current_location()}")
 
         # nav_success = self._goto_region(nearest_region)
 
         nav_success = self._graph_nav_to_object(node_name)
 
-        self._parent_node.get_logger().info(
-            f"[action manager] [inspect] finished nav with success: {nav_success}"
+        self._log_info(
+            f"finished nav with success: {nav_success}"
         )
 
         if not nav_success:
@@ -92,13 +94,11 @@ class ActionManager:
             )
             return False
 
-        self._parent_node.get_logger().info(f"[action manager] [inspect] querying vlm")
+        self._log_info(f"querying vlm")
 
         success, response = self._vlm_client._query_vlm(vlm_query)
 
-        self._parent_node.get_logger().info(
-            f"[action manager] done vlm query: {response}"
-        )
+        self._log_info(f"done vlm query: {response}")
 
         if success:
             self._prompt_former.update(
@@ -112,7 +112,7 @@ class ActionManager:
 
     def _add_frontier(self, goal: np.ndarray) -> Tuple[bool, List[Node]]:
         if self._frontier_extractor.filtered_costmap_with_info is None:
-            self._parent_node.get_logger().info(f"no costmap")
+            self._log_info(f"ERROR no costmap")
             return False, None
         current_location = self._graph.get_current_location()
         frontiers, is_at_obstacle = self._frontier_extractor.get_frontiers(
@@ -146,8 +146,8 @@ class ActionManager:
             region_loc = frontier.location
             neighbor_ids = frontier.neighbors
 
-            self._parent_node.get_logger().info(
-                f"[action manager] adding node: {region_id}, {region_loc}, {neighbor_ids}"
+            self._log_info(
+                f"adding node: {region_id}, {region_loc}, {neighbor_ids}"
             )
 
             self._graph.update_with_node(
@@ -173,12 +173,16 @@ class ActionManager:
         if current_location == goal_region:
             return True
 
+        self._log_info(
+            f"computing path between {current_location} -> {goal_region}"
+        )
+
         path = self._graph.get_path(current_location, goal_region)
-        self._parent_node.get_logger().info(f"navigating along path: {path}")
+        self._log_info(f"navigating along path: {path}")
 
         nav_success = True
         for node in path:
-            self._parent_node.get_logger().info(f"[graph nav] Next node: {node}")
+            self._log_info(f"Next node: {node}")
             if current_location == node:
                 continue
 
@@ -189,7 +193,7 @@ class ActionManager:
 
             nav_success = response
 
-            self._parent_node.get_logger().info(f"[action manager] graph nav step done")
+            self._log_info(f"graph nav step done")
 
             if nav_success:
                 self._graph.update_location(node)
@@ -231,37 +235,6 @@ class ActionManager:
         )
 
         return response
-
-    def set_yaw_goal_tolerance(self, tolerance: float):
-        # Wait for service
-        if not self._parent_node._param_client.wait_for_service(timeout_sec=5.0):
-            self._parent_node.get_logger().error(
-                "Controller server parameter service not available"
-            )
-            return
-
-        param = Parameter()
-        param.name = "general_goal_checker.yaw_goal_tolerance"
-        param.value = ParameterValue(
-            type=ParameterType.PARAMETER_DOUBLE, double_value=tolerance
-        )
-
-        request = SetParameters.Request(parameters=[param])
-
-        # Send request
-        future = self._parent_node._param_client.call_async(request)
-        rclpy.spin_until_future_complete(self, future)
-
-        if future.result():
-            result = future.result().results[0]
-            if result.successful:
-                self._parent_node.get_logger().info(
-                    f"Successfully set yaw_goal_tolerance to {tolerance}"
-                )
-            else:
-                self._parent_node.get_logger().error(
-                    f"Failed to set yaw_goal_tolerance: {result.reason}"
-                )
 
     def _goto_region(self, region_id: str) -> bool:
         response = self._graph_nav_to_region(region_id)

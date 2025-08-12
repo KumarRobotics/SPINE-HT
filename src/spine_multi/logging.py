@@ -10,7 +10,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-
 def get_logger(name=None, output="console", filename="app.log", level=logging.INFO):
     """
     Get a logger with flexible output options

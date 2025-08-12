@@ -8,7 +8,9 @@ def ugv_inspect(
     """Inspect `object_node` for a specific attribute `query`. The query is processed by a vision language model (VLA), and the VLA's answer will be provided."""
 
 
-def ugv_map(region_node: str, ugv_type: str = ["either", "jackal", "husky"]) -> str:
+def ugv_map_region(
+    region_node: str, ugv_type: str = ["either", "jackal", "husky"]
+) -> str:
     """Explore a node in the semantic graph to add additional nodes."""
 
 
@@ -18,7 +20,7 @@ def ugv_explore_to(
     """Explore an (x, y) coordinate to expand the semantic map. Returns map updates."""
 
 
-def uav_flyto(region_node: str) -> bool:
+def uav_fly_to(region_node: str) -> bool:
     """Fly to a node in the graph."""
 
 

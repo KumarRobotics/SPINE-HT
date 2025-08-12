@@ -37,11 +37,13 @@ class VLMManagerTopic(VLMManager):
     def __init__(
         self,
         parent_node: Node,
+        robot_name: str,
         vlm_request: str = "vlm_request",
         vlm_response: str = "vlm_response",
         vlm_ack: str = "vlm_ack",
     ):
         self._parent_node = parent_node
+        self._robot_name = robot_name
 
         self._current_query_idx = -1
         self._query_dict: Dict[int, VLMResp] = {}
@@ -81,7 +83,7 @@ class VLMManagerTopic(VLMManager):
         self._ack_pub.publish(ack_msg)
 
         self._parent_node.get_logger().info(
-            f"[vlm manager topic] sent ack for idx: {msg.idx}"
+            f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
         )
 
     def _query_vlm(self, query: str) -> Tuple[bool, str]:
@@ -99,19 +101,19 @@ class VLMManagerTopic(VLMManager):
         )
 
         self._parent_node.get_logger().info(
-            f"[vlm manager topic] sending idx: {self._current_query_idx} for query: {query}"
+            f"[vlm manager topic] [{self._robot_name}] sending idx: {self._current_query_idx} for query: {query}"
         )
 
         while not self._query_dict[self._current_query_idx].ack:
             self._goal_req_pub.publish(req_msg)
             time.sleep(0.5)
             self._parent_node.get_logger().info(
-                f"[vlm manager topic] waiting for idx: {self._current_query_idx} for query: {query}"
+                f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
             )
 
         answer = self._query_dict[self._current_query_idx].answer
         self._parent_node.get_logger().info(
-            f"[vlm manager topic] got answer for idx {self._current_query_idx}: {answer}"
+            f"[vlm manager topic] [{self._robot_name}] got answer for idx {self._current_query_idx}: {answer}"
         )
 
         return True, answer

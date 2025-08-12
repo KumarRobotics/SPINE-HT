@@ -1,3 +1,5 @@
+import itertools
+import logging
 import textwrap
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -9,20 +11,24 @@ from spine_multi.allocation.assignment import (
     RobotTaskAssigment,
     TaskDescription,
 )
-from spine_multi.allocation.translator import translate_task_for_execution
+from spine_multi.allocation.translator import (
+    translate_task_for_execution,
+    translate_task_for_validation,
+)
 from spine_multi.decomp.llm import MissionDecomp
 from spine_multi.logging import get_logger
 from spine_multi.spine.mapping.graph_util import GraphHandler
+from spine_multi.spine.validator import Validator
 
 JACKAL_CAPABILITIES = [
-    "ugv_map",
+    "ugv_map_region",
     "ugv_inspect",
     "ugv_navigate",
     "ugv_explore_to",
     "jackal",
 ]
 HUSKY_CAPABILITIES = [
-    "ugv_map",
+    "ugv_map_region",
     "ugv_inspect",
     "ugv_navigate",
     "ugv_explore_to",
@@ -58,14 +64,23 @@ class Collaborator:
         team_specification: List[RobotDescription],
         team_spec_language: str,  # TODO auto from above
         semantic_graph: GraphHandler,
-        log: Optional[bool] = True,
+        init_location: str,
+        logger: logging.Logger,
     ):
+        self._logger = get_logger("spine multi collaborator")
         self._allocator = RobotTaskAssigment()
         self._allocator.add_robots(team_specification)
         self._semantic_graph = semantic_graph
+        self._init_location = init_location
         self._mission_decomp = MissionDecomp(team_specification=team_spec_language)
+        self._validator = Validator(self._logger)
         self._updates_given_as_tasks = set()
-        self.log = log
+
+        # TODO this is for validation. Need to figure out
+        # if this makes sense
+        self._semantic_graph._current_location = init_location
+
+        self._logger = logger
 
         # used for reassigning  tasks
         self._iteration_trace = None
@@ -74,6 +89,7 @@ class Collaborator:
         self._mission_decomp.set_specifications(
             mission=mission_specifications,
             scene_graph=self._semantic_graph.to_json_str(),
+            init_location=self._init_location,
         )
 
     def _provide_allocated_tasks(self):
@@ -110,13 +126,52 @@ class Collaborator:
             self._allocator._assigned_tasks
         )
 
+    def _get_mission_decomposition(
+        self,
+    ) -> Tuple[bool, List[List[TaskDescription]], nx.DiGraph, Dict[str, str]]:
+        MAX_GENERATIONS = 3
+        for generation_attempt_idx in range(MAX_GENERATIONS):
+            mission_graph, out = self._mission_decomp.get_mission_graph()
+
+            traces = self._mission_decomp.get_mission_traces(mission_graph)
+
+            llm_task_feedback = []
+            for trace in itertools.chain.from_iterable(traces):
+                translated_task = translate_task_for_validation(trace.id)
+                subtask = [translated_task]
+                _, feedback = self._validator.validate_plan(
+                    subtask, graph=self._semantic_graph
+                )
+                if not feedback.success:
+                    llm_task_feedback.append(feedback.message)
+
+            if len(llm_task_feedback) == 0:
+                return True, traces, mission_graph, out
+
+            self._logger.info(
+                f"[idx {generation_attempt_idx}]: Validation for trace: {traces} yeilded"
+            )
+            for feedback_msg in llm_task_feedback:
+                self._logger.info(f"\n{feedback_msg}")
+
+            self._mission_decomp.give_updates(
+                "Feedback: " + ",".join(llm_task_feedback)
+            )
+
+        return False, traces, mission_graph, out
+
     def get_allocation(self, updates: Optional[str] = "") -> AllocationResult:
         if updates != "":
             self._mission_decomp.give_updates(updates=updates)
 
-        mission_graph, out = self._mission_decomp.get_mission_graph()
+        success, traces, mission_graph, out = self._get_mission_decomposition()
 
-        # self._mission_decomp.save_graph(mission_graph)
+        if not success:
+            return self.get_done_result(
+                mission_graph=mission_graph,
+                log=out,
+                answer="Error in mission decomposition",
+            )
 
         mission_is_done = False
         if out["mission_answer"] != "":
@@ -125,7 +180,6 @@ class Collaborator:
                 mission_graph=mission_graph, log=out, answer=out["mission_answer"]
             )
 
-        traces = self._mission_decomp.get_mission_traces(mission_graph)
         self._iteration_trace = traces
 
         assigment_tasks = self._allocator.get_assignment_set(traces)
@@ -176,7 +230,10 @@ class Collaborator:
         log += f"Specification:\n\t{result.specification}\n\n"
         log += f"Robots:\n\t{result.team}\n\n"
         log += self._mission_decomp.output_log(result.decomposition_log)
-        log += f"mission traces:\n\t{result.mission_traces}\n\n"
+        log += f"mission traces:\n"
+        for trace in result.mission_traces:
+            log += f"\t{trace}\n"
+        log += "\n"
         log += f"assignment set:\n\t{result.assignment_set}\n\n"
         log += f"assignments:\n\t{result.assigmnets}\n\n"
         log += f"translated assignments:\n\t{result.translated_assigmnets}\n\n"

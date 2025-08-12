@@ -1,15 +1,18 @@
 spine_multi_node:
   ros__parameters:
-    test_param: true
     namespace: ""
-    init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/simple_map.json
+    planning_limit_idx: 5
+    team_specification: "You have one clearpath jackal robots"
+    init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
+    init_location: ground_1
     robots:
       robot2:
         name: jackal_1
         namespace: /j100_0002
-        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/simple_map.json
+        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
+        init_location: ground_1
         nav_target_frame: map
-        graph_viz_topic: map
+        graph_viz_topic: /j100_0002/map
         track_topic: /j100_0002/grounding_dino_node/tracks
         local_costmap_topic: /j100_0002/local_costmap/costmap
         vlm_request: /j100_0002/vlm_request
@@ -18,10 +21,14 @@ spine_multi_node:
         navigation_request: /j100_0002/navigation_request
         navigation_status: /j100_0002/navigation_status
         navigation_ack: /j100_0002/navigation_ack
+        label_request: /j100_0002/label_request 
+        label_response: /j100_0002/label_response 
+        label_ack: /j100_0002/label_ack
       robot1:
         name: jackal_2
         namespace: /j100_0003
-        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/simple_map.json
+        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
+        init_location: ground_1
         nav_target_frame: map
         graph_viz_topic: map
         track_topic: /j100_0003/grounding_dino_node/tracks
@@ -32,3 +39,6 @@ spine_multi_node:
         navigation_request: /j100_0003/navigation_request
         navigation_status: /j100_0003/navigation_status
         navigation_ack: /j100_0003/navigation_ack
+        label_request: /j100_0003/label_request 
+        label_response: /j100_0003/label_response 
+        label_ack: /j100_0003/label_ack

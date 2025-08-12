@@ -19,6 +19,7 @@ class MissionDecomp:
 
         self._mission_specification = ""
         self._scene_graph = ""
+        self._init_location = ""
         self._base_prompt = build_prompt(team_specification=team_specification)
 
         self._msg_history = []
@@ -26,9 +27,12 @@ class MissionDecomp:
     def get_mission_specification(self) -> str:
         return self._mission_specification
 
-    def set_specifications(self, mission: str, scene_graph: str = "") -> None:
+    def set_specifications(
+        self, mission: str, scene_graph: str = "", init_location: str = ""
+    ) -> None:
         self._mission_specification = mission
         self._scene_graph = scene_graph
+        self._init_location = init_location
 
     def _build_query(self) -> List[Dict[str, str]]:
         assert self._mission_specification != "", f"must set mission specification"
@@ -36,7 +40,7 @@ class MissionDecomp:
             {"role": "system", "content": self._base_prompt},
             {
                 "role": "user",
-                "content": f"mission specification: {self._mission_specification}, Scene graph: {self._scene_graph}",
+                "content": f"mission specification: {self._mission_specification}\n scene graph: {self._scene_graph}\n initial location: {self._init_location}",
             },
         ] + self._msg_history
 
@@ -141,7 +145,7 @@ class MissionDecomp:
 
         return requirements
 
-    def _parse_task_trace(self, trace: List[str]) -> List[List[TaskDescription]]:
+    def _parse_task_trace(self, trace: List[str]) -> List[TaskDescription]:
         parsed_trace = []
         for task in trace:
             name, args, kwargs = parse_function_call(task)

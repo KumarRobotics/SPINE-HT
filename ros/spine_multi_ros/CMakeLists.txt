@@ -34,6 +34,7 @@ install(PROGRAMS
   scripts/spine_multi_node.py
   scripts/nav_service_translator.py
   scripts/vlm_service_translator.py
+  scripts/label_service_translator.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

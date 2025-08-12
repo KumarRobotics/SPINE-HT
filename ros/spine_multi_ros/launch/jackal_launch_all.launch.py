@@ -16,10 +16,6 @@ def generate_launch_description():
         description="Namespace for the robot (empty for no namespace)",
     )
 
-    robot_name_arg = DeclareLaunchArgument(
-        "robot_name", default_value="j100_0000", description="Name for the robot"
-    )
-
     use_sim_time_arg = DeclareLaunchArgument(
         "use_sim_time", default_value="false", description="Use simulation time"
     )
@@ -29,7 +25,14 @@ def generate_launch_description():
     launch_nav2 = PathJoinSubstitution(
         [pkg_spine_multi, "launch", "navigation_launch.py"]
     )
-    nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", "nav2_jackal.yaml"])
+
+    # args for launching
+    namespace = LaunchConfiguration("robot_namespace")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+
+    nav2_config_name = ["nav2_", namespace, ".yaml"]
+
+    nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", nav2_config_name])
     jackal_static_transforms = PathJoinSubstitution(
         [pkg_spine_multi, "launch", "jackal_static_transforms.launch.py"]
     )
@@ -39,10 +42,7 @@ def generate_launch_description():
         [vision_pkg, "launch", "vision_jackal.launch.py"]
     )
 
-    # args for launching
-    namespace = LaunchConfiguration("robot_namespace")
-    robot_name = LaunchConfiguration("robot_name")
-    use_sim_time = LaunchConfiguration("use_sim_time")
+    robot_map_frame = ["map_", namespace]
 
     # launch everything in a namespace
     namespaced_group = GroupAction(
@@ -52,7 +52,7 @@ def generate_launch_description():
                 jackal_static_transforms,
                 launch_arguments=[
                     # ("use_sim_time", use_sim_time),
-                    # ("robot_namespace", namespace)
+                    ("robot_map_frame", robot_map_frame)
                 ],
             ),
             IncludeLaunchDescription(
@@ -66,37 +66,44 @@ def generate_launch_description():
                     ("cmd_vel_topic", "platform/cmd_vel"),
                 ],
             ),
-            IncludeLaunchDescription(launch_vision, launch_arguments=[
-                ('input_rgb_topic', 'zed/left/image_rect_color'),
-                ('input_depth_topic', 'zed/depth/depth_registered'),
-                ('camera_info_topic', 'zed/depth/camera_info')
-                ]),
+            IncludeLaunchDescription(
+                launch_vision,
+                launch_arguments=[
+                    ("input_rgb_topic", "zed/left/image_rect_color"),
+                    ("input_depth_topic", "zed/depth/depth_registered"),
+                    ("camera_info_topic", "zed/depth/camera_info"),
+                ],
+            ),
             Node(
                 package="spine_multi_ros",  # Replace with your package name
                 executable="twist_converter.py",
                 name="twist_converter",
-                remappings=[
-                    ("cmd_vel", "autonomous/cmd_vel")
-                ],  # Remap output
+                remappings=[("cmd_vel", "autonomous/cmd_vel")],  # Remap output
             ),
             Node(
                 package="safety_controller",
                 executable="safety_controller",
-                name="safety_controller"
+                name="safety_controller",
             ),
             Node(
                 package="spine_multi_ros",
                 executable="nav_service_translator.py",
-                name="nav_service_translator"
+                name="nav_service_translator",
+                parameters=[{"robot_name": namespace}],
             ),
             Node(
                 package="spine_multi_ros",
                 executable="vlm_service_translator.py",
-                name="vlm_service_translator"
-            )
+                name="vlm_service_translator",
+            ),
+            Node(
+                package="spine_multi_ros",
+                executable="label_service_translator.py",
+                name="label_service_translator",
+            ),
         ],
     )
 
     return LaunchDescription(
-        [robot_namespace_arg, robot_name_arg, use_sim_time_arg, namespaced_group]
+        [robot_namespace_arg,  use_sim_time_arg, namespaced_group]
     )

@@ -49,7 +49,6 @@ class TrackerClientComponenet:
         self._current_location = location
 
     def _track_cbk(self, track: Track) -> None:
-        # self._parent_node.get_logger().info("got track")
         # parent = self._current_location
         parent = self._graph.get_current_location()
 
@@ -59,9 +58,13 @@ class TrackerClientComponenet:
             if not self.tracks[track.idx].is_same(track, pos_tol=1):
                 self.tracks[track.idx] = track
                 self.updated_tracks.add(track.idx)
+                self._parent_node.get_logger().info(f"[spine multi] [tracker] updated track: {track.idx}")
+   
         else:
             self.tracks[track.idx] = track
             self.added_tracks.add(track.idx)
+            self._parent_node.get_logger().info(f"[spine multi] [tracker] added track: {track.idx}")
+
 
     def parse_track_updates(self) -> List[str]:
         """Construct new object message in the planning API.

@@ -23,6 +23,7 @@ from spine_multi_ros.nav_manager import (
 )
 from spine_multi_ros.tracker_client import TrackerClientComponenet
 from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
+from spine_multi_ros.set_label_manager import LabelManagerTopic
 
 
 class AutonomyManager:
@@ -36,22 +37,23 @@ class AutonomyManager:
         parent_node: Node,
         robot_name: str,
         init_graph: str,
+        init_location: str,
         nav_target_frame: str,
         graph_viz_topic: str,
         track_topic: str,
         local_costmap_topic: str,
         vlm_params: dict,
         navigation_params: dict,
+        label_params: dict,
         use_actions: Optional[bool] = False,
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
-        self._graph = GraphHandler(init_graph)
+        self._graph = GraphHandler(init_graph, init_node=init_location)
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
-        self._nav_component = NavigationComponentTopic(
-            parent_node,
-        )
+        self._label_manager = LabelManagerTopic(parent_node=parent_node, robot_name=robot_name, **label_params)
+
         # TODO need better handling here
         if use_actions:
             self._nav_component = NavigationComponentAction(
@@ -60,10 +62,12 @@ class AutonomyManager:
             self._vlm_manager = VLMManagerAction(parent_node=parent_node, **vlm_params)
         else:
             self._nav_component = NavigationComponentTopic(
-                parent_node=parent_node, **navigation_params
+                parent_node=parent_node, robot_name=robot_name, **navigation_params
             )
-            self._vlm_manager = VLMManagerTopic(parent_node=parent_node, **vlm_params)
-
+            self._vlm_manager = VLMManagerTopic(
+                parent_node=parent_node, robot_name=self._robot_name, **vlm_params
+            )
+            
         self._graph_viz = GraphVisualizerComponent(
             parent_node=parent_node,
             graph=self._graph,
@@ -81,16 +85,17 @@ class AutonomyManager:
             track_topic=track_topic,
         )
 
-        self._parent_node.get_logger().info(
-            f"[autonomy manager] [{self._robot_name}] tracker cbk init"
+        self._log_info(
+            f"tracker cbk init"
         )
 
-        self._parent_node.get_logger().info(
-            f"[autonomy manager] [{self._robot_name}] vlm client init"
+        self._log_info(
+            f"vlm client init"
         )
 
         self._action_manager = ActionManager(
             parent_node=parent_node,
+            robot_name=self._robot_name,
             graph=self._graph,
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
@@ -101,8 +106,8 @@ class AutonomyManager:
 
         self._behavior_library = self._action_manager.construct_behavior_library()
 
-        self._parent_node.get_logger().info(
-            f"[autonomy manager] [{self._robot_name}] constructed behavior library"
+        self._log_info(
+            f"constructed behavior library"
         )
 
         qos_profile = QoSProfile(
@@ -120,13 +125,16 @@ class AutonomyManager:
             callback_group=costmap_cbk_group,
         )
 
-        self._parent_node.get_logger().info(
-            f"[autonomy manager] [{self._robot_name}] initialized costmap cbk"
+        self._log_info(
+            f"initialized costmap cbk"
         )
 
-        self._parent_node.get_logger().info(
-            f"[autonomy manager] [{self._robot_name}] initialized"
+        self._log_info(
+            f"initialized"
         )
+
+    def _log_info(self, msg: str) -> None:
+        self._parent_node.get_logger().info(f"[autonomy manager] [{self._robot_name}] {msg}")
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
         # self.get_logger().info('[spine node] get costmap')
@@ -152,3 +160,7 @@ class AutonomyManager:
 
     def call_behavior(self, behavior, args):
         return self._behavior_library[behavior](*args)
+
+
+    def set_labels(self, labels: str) -> bool:
+        return self._label_manager._set_labels(labels)

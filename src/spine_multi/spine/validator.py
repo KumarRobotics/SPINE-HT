@@ -3,7 +3,6 @@ from logging import Logger
 from typing import Tuple
 
 import numpy as np
-
 from spine_multi.spine.mapping.graph_util import GraphHandler
 
 ValidPlanFeedback = namedtuple("ValidPlanFeedback", ["success", "message"])
@@ -150,7 +149,7 @@ class Validator:
                 and not graph.path_exists_from_current_loc(first_arg)
             ):
                 feedback = (
-                    f"Feedback: No path from current location, {graph._current_location}, "
+                    f"Feedback: {function}({first_arg}) is not currently feasible - no path from current location, {graph._current_location}, "
                     f"to goal {first_arg}. "
                 )
                 (

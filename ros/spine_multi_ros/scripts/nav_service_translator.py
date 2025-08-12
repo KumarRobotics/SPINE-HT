@@ -54,8 +54,9 @@ class NavServiceTranslator(Node):
             parameters=[
                 ("navigation_action_server", "navigate_to_pose"),
                 ("navigation_request", "navigation_request"),
-                ("frame_id", "odom"),
-                ("parameter_server", "controller_server/set_parameters")
+                (f"robot_name", ""),
+                ("frame_id", "map"),
+                ("parameter_server", "controller_server/set_parameters"),
             ],
         )
 
@@ -72,7 +73,11 @@ class NavServiceTranslator(Node):
             self.get_parameter("frame_id").get_parameter_value().string_value
         )
 
-        parameter_server = self.get_parameter("parameter_server").get_parameter_value().string_value
+        robot_name = self.get_parameter("robot_name").get_parameter_value().string_value
+
+        parameter_server = (
+            self.get_parameter("parameter_server").get_parameter_value().string_value
+        )
 
         client_group = ReentrantCallbackGroup()
         self._action_client = ActionClient(
@@ -130,7 +135,9 @@ class NavServiceTranslator(Node):
 
         if ack_idx in self._goal_dict:
             self._goal_dict[ack_idx].ack = True
-            self.get_logger().info(f"[nav service translator] registered req {ack_idx} as ack")
+            self.get_logger().info(
+                f"[nav service translator] registered req {ack_idx} as ack"
+            )
 
     def _get_goal_msg(self, idx: int, status: int) -> GoalStatus:
         goal_msg = GoalStatus()
@@ -140,7 +147,7 @@ class NavServiceTranslator(Node):
 
     def _timer_cbk(self) -> None:
         if self._current_goal_idx not in self._goal_dict:
-            return 
+            return
 
         nav_goal = self._goal_dict[self._current_goal_idx]
 
@@ -227,8 +234,6 @@ class NavServiceTranslator(Node):
         resp = self._param_client.call(request, timeout_sec=2.0)
         self.get_logger().info(f"got resp: {resp}")
 
-
-
     def _feedback_callback(self, feedback_msg) -> None:
         """Handle feedback from navigation"""
         # self._parent_node.get_logger ().info(f"[nav client] feedback is running")
@@ -238,9 +243,9 @@ class NavServiceTranslator(Node):
         current_pose = feedback.current_pose.pose
         self._distance_remaining = feedback.distance_remaining
 
-        #self.get_logger().info(
+        # self.get_logger().info(
         #    f"[nav service translator] Got feedback for idx: {self._current_goal_idx}"
-        #)
+        # )
 
         self._current_goal_msg = self._get_goal_msg(
             idx=self._current_goal_idx,

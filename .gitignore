@@ -4,7 +4,9 @@
 tests/
 log/
 build/
+install/
 .vscode/
 *rviz
 *json
 notebooks
+*yaml

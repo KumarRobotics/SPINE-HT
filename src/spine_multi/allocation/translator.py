@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
 from spine_multi.decomp.util import parse_function_call
 
@@ -13,11 +13,22 @@ class FunctionDescription:
 # fmt: off
 FUNCTION_MAPPINGS = {
     "ugv_inspect": FunctionDescription('inspect', 2), 
-    "ugv_map": FunctionDescription('map', 1), 
+    "ugv_map_region": FunctionDescription('map_region', 1), 
     "ugv_explore_to": FunctionDescription('explore_to', 2),
     "ugv_navigate": FunctionDescription("goto", 1),
 }
 # fmt: on
+
+
+# TODO repetative
+def translate_task_for_validation(task: str) -> Tuple[str, List[str], Dict[str, str]]:
+    name, args, kwargs = parse_function_call(task)
+    mapped_function = FUNCTION_MAPPINGS[name]
+    all_args = args + list(kwargs.values())
+    expected_args = all_args[: mapped_function.expected_args]
+    formatted_args = ",".join(expected_args)
+
+    return f"{mapped_function.name}({formatted_args})"
 
 
 def translate_task_for_execution(task: str) -> Tuple[str, List[Any]]:
