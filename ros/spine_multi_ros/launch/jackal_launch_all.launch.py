@@ -6,6 +6,9 @@ from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDesc
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, PushRosNamespace
 
+from pathlib import Path
+from datetime import datetime
+
 
 def generate_launch_description():
 
@@ -20,6 +23,10 @@ def generate_launch_description():
         "use_sim_time", default_value="false", description="Use simulation time"
     )
 
+    should_bag_arg = DeclareLaunchArgument(
+        "record", default_value="false", description="Use simulation time"
+    )
+
     # get pkgs and configs
     pkg_spine_multi = get_package_share_directory("spine_multi_ros")
     launch_nav2 = PathJoinSubstitution(
@@ -29,6 +36,7 @@ def generate_launch_description():
     # args for launching
     namespace = LaunchConfiguration("robot_namespace")
     use_sim_time = LaunchConfiguration("use_sim_time")
+    record = LaunchConfiguration("record")
 
     nav2_config_name = ["nav2_", namespace, ".yaml"]
 
@@ -104,6 +112,29 @@ def generate_launch_description():
         ],
     )
 
-    return LaunchDescription(
-        [robot_namespace_arg,  use_sim_time_arg, namespaced_group]
-    )
+    launch_process = [
+        robot_namespace_arg,
+        use_sim_time_arg,
+        should_bag_arg,
+        namespaced_group,
+    ]
+
+    if record:
+        record_launch_path = PathJoinSubstitution(
+            [pkg_spine_multi, "launch", "record.launch.py"]
+        )
+
+        log_dir = Path.home() / "data/bags"
+        n_bags = len(list(log_dir.glob("*")))
+        bag_name = str(
+            log_dir / f"{n_bags}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
+        )
+
+        launch_record = IncludeLaunchDescription(
+            record_launch_path,
+            launch_arguments={"namespace": namespace, "output_bag": bag_name},
+        )
+
+        launch_process.append(launch_record)
+
+    return LaunchDescription(launch_process)
