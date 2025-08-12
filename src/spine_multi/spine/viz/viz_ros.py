@@ -1,10 +1,9 @@
 import rclpy
 from geometry_msgs.msg import Point
 from rclpy.node import Node
+from spine_multi.spine.mapping.graph_util import GraphHandler
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
-
-from spine_multi.spine.mapping.graph_util import GraphHandler
 
 
 class NodeMarker:
@@ -102,8 +101,8 @@ class GraphViz:
 
     def build_markers(self) -> None:
         """Constructs marker messages."""
-        for id, node in enumerate(self.graph.graph.nodes):
-            attr = self.graph.graph.nodes[node]
+        for id, node in enumerate(self.graph.get_nx_graph().nodes):
+            attr = self.graph.get_nx_graph().nodes[node]
 
             loc_x = float(attr["coords"][0])
             loc_y = float(attr["coords"][1])
@@ -135,11 +134,11 @@ class GraphViz:
 
             self.node_markers[node] = NodeMarker(marker_msg, marker_msg_text)
 
-        for id, (n1, n2) in enumerate(self.graph.graph.edges):
+        for id, (n1, n2) in enumerate(self.graph.get_nx_graph().edges):
             start = [float(c) for c in self.graph.lookup_node(n1)[0]["coords"]]
             end = [float(c) for c in self.graph.lookup_node(n2)[0]["coords"]]
 
-            base_id = 2 * len(self.graph.graph.nodes) + 2 * id
+            base_id = 2 * len(self.graph.get_nx_graph().nodes) + 2 * id
             marker_msg_start = self.get_marker_msg(0, 0, base_id)
 
             marker_msg_start.type = marker_msg.LINE_STRIP

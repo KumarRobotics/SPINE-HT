@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation
-
 from spine_multi.logging import get_logger
 from spine_multi.spine.mapping.graph_util import GraphHandler
 
@@ -76,9 +75,9 @@ class FrontierExtractor:
         region_nodes_locs = []
         region_nodes = []
 
-        for node in self.graph_handler.graph.nodes:
-            if self.graph_handler.graph.nodes[node]["type"] == "region":
-                node_loc = self.graph_handler.graph.nodes[node]["coords"]
+        for node in self.graph_handler.get_nx_graph().nodes:
+            if self.graph_handler.get_nx_graph().nodes[node]["type"] == "region":
+                node_loc = self.graph_handler.get_nx_graph().nodes[node]["coords"]
                 region_nodes_locs.append(node_loc)
                 region_nodes.append(node)
 

@@ -82,9 +82,9 @@ class VLMManagerTopic(VLMManager):
         ack_msg.data = msg.idx
         self._ack_pub.publish(ack_msg)
 
-        self._parent_node.get_logger().info(
-            f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
-        )
+        # self._parent_node.get_logger().info(
+        #    f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
+        # )
 
     def _query_vlm(self, query: str) -> Tuple[bool, str]:
         self._current_query_idx += 1
@@ -106,10 +106,10 @@ class VLMManagerTopic(VLMManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._goal_req_pub.publish(req_msg)
-            time.sleep(0.5)
-            self._parent_node.get_logger().info(
-                f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
-            )
+            time.sleep(1)
+            # self._parent_node.get_logger().info(
+            #     f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
+            # )
 
         answer = self._query_dict[self._current_query_idx].answer
         self._parent_node.get_logger().info(

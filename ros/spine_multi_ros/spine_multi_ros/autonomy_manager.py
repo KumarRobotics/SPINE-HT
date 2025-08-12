@@ -10,6 +10,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
+from spine_multi.multi_robot_graph import MultiRobotGraphHandler
 from spine_multi.spine import GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
@@ -21,9 +22,9 @@ from spine_multi_ros.nav_manager import (
     NavigationComponentAction,
     NavigationComponentTopic,
 )
+from spine_multi_ros.set_label_manager import LabelManagerTopic
 from spine_multi_ros.tracker_client import TrackerClientComponenet
 from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
-from spine_multi_ros.set_label_manager import LabelManagerTopic
 
 
 class AutonomyManager:
@@ -36,8 +37,8 @@ class AutonomyManager:
         *,
         parent_node: Node,
         robot_name: str,
-        init_graph: str,
-        init_location: str,
+        init_graph: GraphHandler,
+        init_node: str,
         nav_target_frame: str,
         graph_viz_topic: str,
         track_topic: str,
@@ -45,14 +46,19 @@ class AutonomyManager:
         vlm_params: dict,
         navigation_params: dict,
         label_params: dict,
+        tracks: dict,
         use_actions: Optional[bool] = False,
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
-        self._graph = GraphHandler(init_graph, init_node=init_location)
+        self._graph = MultiRobotGraphHandler(
+            graph_handler=init_graph, init_node=init_node
+        )
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
-        self._label_manager = LabelManagerTopic(parent_node=parent_node, robot_name=robot_name, **label_params)
+        self._label_manager = LabelManagerTopic(
+            parent_node=parent_node, robot_name=robot_name, **label_params
+        )
 
         # TODO need better handling here
         if use_actions:
@@ -67,7 +73,7 @@ class AutonomyManager:
             self._vlm_manager = VLMManagerTopic(
                 parent_node=parent_node, robot_name=self._robot_name, **vlm_params
             )
-            
+
         self._graph_viz = GraphVisualizerComponent(
             parent_node=parent_node,
             graph=self._graph,
@@ -75,7 +81,7 @@ class AutonomyManager:
             topic_name=graph_viz_topic,
             scale=0.5,
         )
-        self._graph_viz.set_graph(self._graph)
+        self._graph_viz.set_graph(self._graph.get_graph())
 
         self._tracker_componenet = TrackerClientComponenet(
             parent_node,
@@ -83,15 +89,12 @@ class AutonomyManager:
             self._prompt_former,
             self._graph_viz,
             track_topic=track_topic,
+            tracks=tracks,
         )
 
-        self._log_info(
-            f"tracker cbk init"
-        )
+        self._log_info(f"tracker cbk init")
 
-        self._log_info(
-            f"vlm client init"
-        )
+        self._log_info(f"vlm client init")
 
         self._action_manager = ActionManager(
             parent_node=parent_node,
@@ -105,10 +108,9 @@ class AutonomyManager:
         )
 
         self._behavior_library = self._action_manager.construct_behavior_library()
+        self._behavior_library["set_labels"] = self.set_labels
 
-        self._log_info(
-            f"constructed behavior library"
-        )
+        self._log_info(f"constructed behavior library")
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -125,16 +127,14 @@ class AutonomyManager:
             callback_group=costmap_cbk_group,
         )
 
-        self._log_info(
-            f"initialized costmap cbk"
-        )
+        self._log_info(f"initialized costmap cbk")
 
-        self._log_info(
-            f"initialized"
-        )
+        self._log_info(f"initialized")
 
     def _log_info(self, msg: str) -> None:
-        self._parent_node.get_logger().info(f"[autonomy manager] [{self._robot_name}] {msg}")
+        self._parent_node.get_logger().info(
+            f"[autonomy manager] [{self._robot_name}] {msg}"
+        )
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
         # self.get_logger().info('[spine node] get costmap')
@@ -160,7 +160,6 @@ class AutonomyManager:
 
     def call_behavior(self, behavior, args):
         return self._behavior_library[behavior](*args)
-
 
     def set_labels(self, labels: str) -> bool:
         return self._label_manager._set_labels(labels)

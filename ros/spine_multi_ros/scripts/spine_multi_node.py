@@ -18,11 +18,11 @@ from spine_multi.collaborator import (
     Collaborator,
     RobotDescription,
 )
-from spine_multi.spine.mapping.graph_util import GraphHandler
+from spine_multi.logging import get_logger
 from spine_multi.spine.class_llm import ClassLLM
+from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi_ros.autonomy_manager import AutonomyManager
 from teaming_msgs.srv import Mission
-from spine_multi.logging import get_logger
 
 
 # TODO should go into src
@@ -30,7 +30,6 @@ from spine_multi.logging import get_logger
 class RobotConfig:
     name: str
     namespace: str
-    init_graph: str
     init_location: str
     nav_target_frame: str
     graph_viz_topic: str
@@ -45,7 +44,7 @@ class RobotConfig:
     label_request: str
     label_response: str
     label_ack: str
- 
+
 
 @dataclass
 class BehaviorResult:
@@ -79,12 +78,15 @@ class SPINEMultiNode(Node):
             self.get_parameter("team_specification").get_parameter_value().string_value
         )
         init_graph = self.get_parameter("init_graph").get_parameter_value().string_value
-        init_location = self.get_parameter("init_location").get_parameter_value().string_value
+        init_location = (
+            self.get_parameter("init_location").get_parameter_value().string_value
+        )
         self._planning_limit = (
             self.get_parameter("planning_limit_idx").get_parameter_value().integer_value
         )
 
         self._graph = GraphHandler(graph_path=init_graph)
+        self._tracks = {}
 
         self.get_logger().info(f"init graph is: {self._graph.to_json_str()}")
         self.get_logger().info(f"team specification: {team_specification}")
@@ -96,7 +98,7 @@ class SPINEMultiNode(Node):
             semantic_graph=self._graph,
             team_spec_language=team_specification,
             init_location=init_location,
-            logger=self._logger
+            logger=self._logger,
         )
         self._planning_limit = 5
         self._class_llm = ClassLLM()
@@ -143,12 +145,13 @@ class SPINEMultiNode(Node):
             managers[config.name] = AutonomyManager(
                 parent_node=self,
                 robot_name=config.name,
-                init_graph=config.init_graph,
-                init_location=config.init_location,
+                init_graph=self._graph,
+                init_node=config.init_location,
                 nav_target_frame=config.nav_target_frame,
                 graph_viz_topic=config.graph_viz_topic,
                 track_topic=config.track_topic,
                 local_costmap_topic=config.local_costmap_topic,
+                tracks=self._tracks,
                 navigation_params={
                     "navigation_request": config.navigation_request,
                     "navigation_status": config.navigation_status,
@@ -162,15 +165,22 @@ class SPINEMultiNode(Node):
                 label_params={
                     "label_request": config.label_request,
                     "label_response": config.label_response,
-                    "label_ack": config.label_ack
-                }
+                    "label_ack": config.label_ack,
+                },
             )
 
         return managers
 
-    def _set_labels(self, label_set: str) -> bool:
+    def _set_labels(self, label_set: str) -> List[BehaviorResult]:
+
+        # construct tasks
+        set_label_assignments = []
         for robot, manager in self._robot_autonomy_managers.items():
-            manager.set_labels(label_set)
+            set_label_assignments.append((robot, ("set_labels", [label_set])))
+
+        return self._task_robots_async(
+            assignments=set_label_assignments, planning_idx=0
+        )
 
     def _mission_cbk(
         self, request: Mission.Request, response: Mission.Response
@@ -180,7 +190,6 @@ class SPINEMultiNode(Node):
         _, mission_labels = self._class_llm.request(request.spec)
         self._log_info(f"setting mission labels: {mission_labels}")
         self._set_labels(",".join(mission_labels["classes"]))
-
 
         self._collaborator.init_planner(mission_specifications=request.spec)
         allocation_result = self._collaborator.get_allocation()
@@ -209,7 +218,7 @@ class SPINEMultiNode(Node):
 
                 task_results = self._task_robots_async(assignments, planning_idx)
 
-                self.get_logger().info(f"[spine node] robot results are done ")
+                self.get_logger().info(f"[spine node] robot results are done")
 
                 for result in task_results:
                     self.get_logger().info(
@@ -227,7 +236,7 @@ class SPINEMultiNode(Node):
             for robot, autonomy_manager in self._robot_autonomy_managers.items():
                 autonomy_manager._tracker_componenet.parse_track_updates()
                 robot_feedback = autonomy_manager._prompt_former.form_updates()
-                updates += f"{robot} updates: {robot_feedback}"
+                updates += f"{robot} updates: {robot_feedback}\n"
 
             self.get_logger().info(f"sending updates: {updates}")
 
@@ -274,7 +283,9 @@ class SPINEMultiNode(Node):
                 self.get_logger().error(f"Robot {robot} generated exception: {ex}")
                 results.append(BehaviorResult(robot, "unknown", False, str(ex)))
 
-            self.get_logger().info(f"[spine node] robot results are done ")
+            self.get_logger().info(
+                f"[spine node] robot results are done for {assignments}"
+            )
 
         return results
 

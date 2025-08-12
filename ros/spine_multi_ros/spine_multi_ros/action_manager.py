@@ -5,6 +5,7 @@ import rclpy
 from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from rclpy.node import Node
+from spine_multi.multi_robot_graph import MultiRobotGraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
@@ -13,12 +14,13 @@ from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
 from spine_multi_ros.nav_manager import NavigationComponentTopic
 from spine_multi_ros.vlm_manager import VLMManager
 
+
 class ActionManager:
     def __init__(
         self,
         parent_node: Node,
         robot_name: str,
-        graph: GraphHandler,
+        graph: GraphHandler | MultiRobotGraphHandler,
         graph_viz: GraphVisualizerComponent,
         prompt_former: UpdatePromptFormer,
         nav_componenet: NavigationComponentTopic,
@@ -47,7 +49,9 @@ class ActionManager:
         }
 
     def _log_info(self, msg):
-        self._parent_node.get_logger().info(f"[action manager] [{self._robot_name}] {msg}")
+        self._parent_node.get_logger().info(
+            f"[action manager] [{self._robot_name}] {msg}"
+        )
 
     def _explore_to(self, goal_x: float, goal_y: float) -> bool:
         x = float(goal_x)
@@ -75,15 +79,15 @@ class ActionManager:
 
         nearest_region = nearest_region[0]
 
-        self._log_info("inspect object region nav: {nearest_region} from {self._graph.get_current_location()}")
+        self._log_info(
+            f"inspect object region nav: {nearest_region} from {self._graph.get_current_location()}"
+        )
 
         # nav_success = self._goto_region(nearest_region)
 
         nav_success = self._graph_nav_to_object(node_name)
 
-        self._log_info(
-            f"finished nav with success: {nav_success}"
-        )
+        self._log_info(f"finished nav with success: {nav_success}")
 
         if not nav_success:
             self._prompt_former.update(
@@ -146,9 +150,7 @@ class ActionManager:
             region_loc = frontier.location
             neighbor_ids = frontier.neighbors
 
-            self._log_info(
-                f"adding node: {region_id}, {region_loc}, {neighbor_ids}"
-            )
+            self._log_info(f"adding node: {region_id}, {region_loc}, {neighbor_ids}")
 
             self._graph.update_with_node(
                 node=region_id,
@@ -166,16 +168,14 @@ class ActionManager:
                 new_nodes=[new_node], new_connections=new_connections
             )
 
-        self._graph_viz.set_graph(self._graph)
+        self._graph_viz.set_graph(self._graph.get_graph())
 
     def _graph_nav_to_region(self, goal_region: str) -> bool:
         current_location = self._graph.get_current_location()
         if current_location == goal_region:
             return True
 
-        self._log_info(
-            f"computing path between {current_location} -> {goal_region}"
-        )
+        self._log_info(f"computing path between {current_location} -> {goal_region}")
 
         path = self._graph.get_path(current_location, goal_region)
         self._log_info(f"navigating along path: {path}")

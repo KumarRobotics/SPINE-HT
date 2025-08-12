@@ -545,6 +545,12 @@ class GraphHandler:
         # return nodes_reachable_from_curr_loc[closest_node]
         return closest_node_id, target_node_id
 
+    def get_graph(self):
+        return self
+
+    def get_nx_graph(self) -> nx.Graph:
+        return self.graph
+
     def __str__(self) -> str:
         out = f"Nodes\n---\n"
         for node in self.graph.nodes:

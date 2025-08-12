@@ -51,6 +51,8 @@ class NavigationComponentTopic(NavigationComponent):
         self._current_goal_idx = -1
         self._goal_msg_recv = False
 
+        self._logged_goal = False
+
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             # history=HistoryPolicy.KEEP_LAST,
@@ -76,18 +78,16 @@ class NavigationComponentTopic(NavigationComponent):
             Int16, navigation_ack, qos_profile
         )
 
-        self._log_info(
-            f"init"
-        )
-    
+        self._log_info(f"init")
+
     def _log_info(self, msg: str) -> None:
-        self._parent_node.get_logger().info(f"[nav manager topic] [{self._robot_name}] {msg}")
+        self._parent_node.get_logger().info(
+            f"[nav manager topic] [{self._robot_name}] {msg}"
+        )
 
     def _goal_status_cbk(self, goal_status: GoalStatus) -> None:
 
-        self._log_info(
-            f"got msg {goal_status}"
-        )
+        self._log_info(f"got goal status msg {goal_status}")
 
         if goal_status.idx != self._current_goal_idx:
             return
@@ -108,9 +108,9 @@ class NavigationComponentTopic(NavigationComponent):
             ack_msg = Int16()
             ack_msg.data = self._current_goal_idx
             self._ack_pub.publish(ack_msg)
-            self._log_info(
-                f"pub ack msg"
-            )
+            # self._log_info(
+            #     f"pub ack msg"
+            # )
 
     def navigate_and_wait(
         self,
@@ -121,6 +121,7 @@ class NavigationComponentTopic(NavigationComponent):
         check_yaw: Optional[bool] = False,
     ) -> bool:
         self._in_progress = True
+        self._logged_goal = False
 
         self._current_goal_idx = self._current_goal_idx + 1
         self._in_progress = True
@@ -133,23 +134,23 @@ class NavigationComponentTopic(NavigationComponent):
         )
 
         while not self._goal_msg_recv:
-            self._log_info(
-                f"sending goal msg "
-            )
+            if not self._logged_goal:
+                self._log_info(
+                    f"sending goal msg: {self._current_goal_idx} of {x} {y} "
+                )
+                self._logged_goal = True
 
             self._goal_req_pub.publish(goal_msg)
             time.sleep(5)
 
         self._log_info(
-            f"waiting for msg "
+            f"waiting for goal response: {self._current_goal_idx} of {x} {y}"
         )
 
         while self._in_progress:
             time.sleep(0.5)
 
-        self._log_info(
-            f"goal done with succes: {self._goal_success}"
-        )
+        self._log_info(f"goal done with succes: {self._goal_success}")
 
         return self._goal_success
 
@@ -203,9 +204,7 @@ class NavigationComponentAction:
             f"Waiting for Nav2 action server on {navigation_action_server}..."
         )
         self._action_client.wait_for_server()
-        self._log_info(
-            f"Nav2 action server available on {navigation_action_server}!"
-        )
+        self._log_info(f"Nav2 action server available on {navigation_action_server}!")
 
         # Store current goal handle
         self._goal_handle = None
@@ -215,7 +214,6 @@ class NavigationComponentAction:
         self._distance_remaining = np.inf
 
         self._strict_yaw = False
-
 
     def _log_info(self, msg: str) -> None:
         self._param_client.get_logger().info(f"[navigation component action] {msg}")
@@ -269,9 +267,7 @@ class NavigationComponentAction:
         elif not check_yaw and self._strict_yaw:
             self.set_yaw_tolerance(float(3.1))
 
-        self._log_info(
-            f"Sending goal: x={x}, y={y}, yaw={yaw}"
-        )
+        self._log_info(f"Sending goal: x={x}, y={y}, yaw={yaw}")
 
         # Send goal
         self._send_goal_future = self._action_client.send_goal_async(

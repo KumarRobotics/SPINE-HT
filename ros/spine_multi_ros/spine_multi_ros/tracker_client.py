@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
@@ -9,7 +9,7 @@ from spine_multi.spine import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
 from teaming_msgs.msg import Track
-from vision_ros2.tracker import from_track_msg
+from vision_ros2.tracker import Hypothesis, from_track_msg
 
 
 class TrackerClientComponenet:
@@ -20,13 +20,19 @@ class TrackerClientComponenet:
         prompt_former: UpdatePromptFormer,
         graph_viz: GraphVisualizerComponent,
         track_topic: Optional[str] = "tracks",
+        tracks: Optional[Dict[int, Hypothesis]] = None,
     ):
         self._parent_node = parent_node
         self._graph = graph
         self._prompt_former = prompt_former
         self._graph_viz = graph_viz
         self._current_location = ""
-        self.tracks = {}
+
+        if tracks == None:
+            self.tracks: Dict[int, Hypothesis] = {}
+        else:
+            self.tracks = tracks
+
         self.added_tracks = set()
         self.updated_tracks = set()
 
@@ -58,13 +64,23 @@ class TrackerClientComponenet:
             if not self.tracks[track.idx].is_same(track, pos_tol=1):
                 self.tracks[track.idx] = track
                 self.updated_tracks.add(track.idx)
-                self._parent_node.get_logger().info(f"[spine multi] [tracker] updated track: {track.idx}")
-   
-        else:
+                self._parent_node.get_logger().info(
+                    f"[spine multi] [tracker] updated track: {track.idx} ({track.label})"
+                )
+
+        elif not self._is_duplicate(track):
             self.tracks[track.idx] = track
             self.added_tracks.add(track.idx)
-            self._parent_node.get_logger().info(f"[spine multi] [tracker] added track: {track.idx}")
+            self._parent_node.get_logger().info(
+                f"[spine multi] [tracker] added track: {track.idx}"
+            )
 
+    def _is_duplicate(self, incoming_track: Hypothesis) -> bool:
+        # TODO inefficient
+        for idx, track in self.tracks.items():
+            if track.is_same(incoming_track):
+                return True
+        return False
 
     def parse_track_updates(self) -> List[str]:
         """Construct new object message in the planning API.
@@ -110,4 +126,4 @@ class TrackerClientComponenet:
                 attrs={"coords": track.pose[:2], "type": "object"},
             )
 
-            self._graph_viz.set_graph(self._graph)
+            self._graph_viz.set_graph(self._graph.get_graph())
