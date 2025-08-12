@@ -168,6 +168,7 @@ POSTPEND = """
 # Stop Conditions
 - Terminate planning only upon producing a non-blank `mission_answer` indicating completion.
 - In all other cases, extend the plan as a superset of the prior iteration, unless told otherwise.
+- Stop once you complete all reasonable tasks and report your findings (even if there are none). 
 
 ## Output Format
 Each response must be a single JSON object with these required fields (names, types, order required):
