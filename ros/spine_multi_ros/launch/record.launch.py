@@ -29,7 +29,8 @@ def generate_launch_description():
         (
             [namespace_arg, "/zed/rgb/image_rect_color/compressed"],
             [namespace_arg, "/zed/throttled/rgb/image_rect_color/compressed"],
-        )(
+        ),
+        (
             [namespace_arg, "/zed/depth/depth_info"],
             [namespace_arg, "/zed/throttled/depth/depth_info"],
         ),
