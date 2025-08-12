@@ -38,11 +38,12 @@ def generate_launch_description():
 
     ld = [declare_namespace_arg]
 
-    for orig_topic, throttle_topic in msg_throttles:
+    for idx, (orig_topic, throttle_topic) in enumerate(msg_throttles):
         ld.append(
             Node(
                 package="topic_tools",
                 executable="throttle",
+                name=f"throttle_{idx}",
                 arguments=["messages", orig_topic, "1.0", throttle_topic],
                 output="screen",
             )
