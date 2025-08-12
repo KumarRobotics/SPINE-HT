@@ -35,6 +35,9 @@ class MultiRobotGraphHandler:
     def update_with_node(self, node: str, edges: List[str], attrs: Dict[str, Any] = {}):
         return self._graph.update_with_node(node, edges, attrs)
 
+    def update_node_description(self, node: str, **attrs: Dict[str, str]) -> None:
+        self._graph.update_node_description(node, **attrs)
+
     def get_path(self, start_node: str, end_node: str):
         return self._graph.get_path(start_node, end_node)
 
