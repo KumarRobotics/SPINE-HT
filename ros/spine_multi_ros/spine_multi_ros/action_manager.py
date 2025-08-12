@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -26,6 +27,7 @@ class ActionManager:
         nav_componenet: NavigationComponentTopic,
         vlm_client: VLMManager,
         frontier_extractor: FrontierExtractor,
+        logger: Logger,
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
@@ -35,6 +37,7 @@ class ActionManager:
         self._prompt_former = prompt_former
         self._nav_componenet = nav_componenet
         self._vlm_client = vlm_client
+        self._logger = logger
 
     def construct_behavior_library(self) -> Dict[str, Callable]:
         return {
@@ -42,16 +45,59 @@ class ActionManager:
             "goto": self._goto_region,
             "inspect": self._inspect_object_wrapper,
             "explore_region": lambda x: self._goto_region(x[0]),
-            "map_region": self._goto_region,  # TODO placeholder
+            "map_region": self._map_region,  # TODO placeholder
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
         }
 
     def _log_info(self, msg):
-        self._parent_node.get_logger().info(
-            f"[action manager] [{self._robot_name}] {msg}"
+        log_msg = f"[action manager] [{self._robot_name}] {msg}"
+
+        self._parent_node.get_logger().info(log_msg)
+        self._logger.info(log_msg)
+
+    def _map_region(self, region_node: str) -> bool:
+        success = self._goto_region(region_node)
+
+        if not success:
+            return False
+
+        self._describe_scene(region_node)
+
+        coords, _ = self._graph.get_node_coords(region_node)
+
+        self._try_add_edges(
+            node_id=region_node,
+            coords=np.array(coords),
+            node_type="region",
         )
+
+        return True
+
+    def _describe_scene(self, region_node: str) -> None:
+        success, response = self._vlm_client.describe_scene()
+
+        self._graph.update_node_description(region_node, description=response)
+
+        self._prompt_former.update(
+            attribute_updates=[{"name": region_node, "description": response}]
+        )
+
+    def _try_add_edges(self, node_id, coords, node_type) -> Tuple[List[str], List[str]]:
+        new_neighbors = self._frontier_extractor.get_missing_neighbors(node_id, coords)
+
+        if len(new_neighbors) == 0:
+            return []
+
+        all_neighbors = new_neighbors + self._graph.get_neighbors(node_id)
+
+        new_connections = [[node_id, neighbor] for neighbor in new_neighbors]
+        self._prompt_former.update(new_connections=new_connections)
+        attrs = {"coords": coords, "type": node_type}
+        self._graph.update_with_node(node=node_id, edges=all_neighbors, attrs=attrs)
+
+        return new_neighbors
 
     def _explore_to(self, goal_x: float, goal_y: float) -> bool:
         x = float(goal_x)

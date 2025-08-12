@@ -64,9 +64,9 @@ class TrackerClientComponenet:
             if not self.tracks[track.idx].is_same(track, pos_tol=1):
                 self.tracks[track.idx] = track
                 self.updated_tracks.add(track.idx)
-                self._parent_node.get_logger().info(
-                    f"[spine multi] [tracker] updated track: {track.idx} ({track.label})"
-                )
+                # self._parent_node.get_logger().info(
+                #     f"[spine multi] [tracker] updated track: {track.idx} ({track.label})"
+                # )
 
         elif not self._is_duplicate(track):
             self.tracks[track.idx] = track

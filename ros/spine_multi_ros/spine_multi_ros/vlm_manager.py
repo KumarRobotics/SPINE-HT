@@ -71,11 +71,16 @@ class VLMManagerTopic(VLMManager):
 
         self._ack_pub = self._parent_node.create_publisher(Int16, vlm_ack, qos_profile)
 
+        self.open_scene_prompt = (
+            "You are a robot. Describe where you are so you can plan. "
+            "Provide your answer as a noun with a short description. For example: empty sidewalk, road, park with trees and benches, empty parking lot, patio."
+        )
+
     def _req_status_ckb(self, msg: VLMResponse) -> None:
         if msg.idx not in self._query_dict:
             return
 
-        self._query_dict[msg.idx].answer = msg.answer
+        self._query_dict[msg.idx].answer = msg.answer.data
         self._query_dict[msg.idx].ack = True
 
         ack_msg = Int16()
@@ -85,6 +90,9 @@ class VLMManagerTopic(VLMManager):
         # self._parent_node.get_logger().info(
         #    f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
         # )
+
+    def describe_scene(self) -> Tuple[bool, str]:
+        return self._query_vlm(self.open_scene_prompt)
 
     def _query_vlm(self, query: str) -> Tuple[bool, str]:
         self._current_query_idx += 1

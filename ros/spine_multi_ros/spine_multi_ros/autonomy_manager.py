@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+from logging import Logger
 from typing import Optional
 
 import numpy as np
@@ -47,10 +48,12 @@ class AutonomyManager:
         navigation_params: dict,
         label_params: dict,
         tracks: dict,
+        logger: Logger,
         use_actions: Optional[bool] = False,
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
+        self._logger = logger
         self._graph = MultiRobotGraphHandler(
             graph_handler=init_graph, init_node=init_node
         )
@@ -105,6 +108,7 @@ class AutonomyManager:
             nav_componenet=self._nav_component,
             vlm_client=self._vlm_manager,
             frontier_extractor=self._frontier_extractor,
+            logger=self._logger,
         )
 
         self._behavior_library = self._action_manager.construct_behavior_library()
@@ -132,9 +136,10 @@ class AutonomyManager:
         self._log_info(f"initialized")
 
     def _log_info(self, msg: str) -> None:
-        self._parent_node.get_logger().info(
-            f"[autonomy manager] [{self._robot_name}] {msg}"
-        )
+        log_msg = f"[autonomy manager] [{self._robot_name}] {msg}"
+
+        self._parent_node.get_logger().info(log_msg)
+        self._logger.info(log_msg)
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
         # self.get_logger().info('[spine node] get costmap')
