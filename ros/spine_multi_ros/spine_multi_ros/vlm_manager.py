@@ -106,7 +106,7 @@ class VLMManagerTopic(VLMManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._goal_req_pub.publish(req_msg)
-            time.sleep(1)
+            time.sleep(5)
             # self._parent_node.get_logger().info(
             #     f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
             # )

@@ -95,7 +95,7 @@ class LabelServiceTranslator(Node):
                     f"[label service translator] sending answer for {req.idx}: {success}"
                 )
                 self._status_update_pub.publish(resp_msg)
-                time.sleep(1.0)
+                time.sleep(5.0)
             except Exception as ex:
                 self.get_logger().info(f"[label service translator] got ex: {ex}")
 

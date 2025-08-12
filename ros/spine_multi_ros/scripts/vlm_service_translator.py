@@ -85,7 +85,7 @@ class VLMServiceTranslator(Node):
                 f"[vlm service translator] sending answer for {req.idx}: {resp}"
             )
             self._status_update_pub.publish(resp_msg)
-            time.sleep(1.0)
+            time.sleep(5.0)
 
     def _ack_cbk(self, msg: Int16) -> None:
         self.get_logger().info(f"[vlm service translator] got ack for {msg.data}")

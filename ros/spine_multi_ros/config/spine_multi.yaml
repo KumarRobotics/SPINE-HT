@@ -2,14 +2,13 @@ spine_multi_node:
   ros__parameters:
     namespace: ""
     planning_limit_idx: 5
-    team_specification: "You have one clearpath jackal robots"
+    team_specification: "You have two clearpath jackal robots"
     init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
     init_location: ground_1
     robots:
       robot2:
         name: jackal_1
         namespace: /j100_0002
-        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
         init_location: ground_1
         nav_target_frame: map
         graph_viz_topic: /j100_0002/map
@@ -27,7 +26,6 @@ spine_multi_node:
       robot1:
         name: jackal_2
         namespace: /j100_0003
-        init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
         init_location: ground_1
         nav_target_frame: map
         graph_viz_topic: map

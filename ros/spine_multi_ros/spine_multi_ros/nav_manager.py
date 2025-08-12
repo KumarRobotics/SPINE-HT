@@ -148,7 +148,7 @@ class NavigationComponentTopic(NavigationComponent):
         )
 
         while self._in_progress:
-            time.sleep(0.5)
+            time.sleep(5)
 
         self._log_info(f"goal done with succes: {self._goal_success}")
 
@@ -233,7 +233,7 @@ class NavigationComponentAction:
 
         while self._in_progress:
             # self._parent_node.get_logger().info("[nav manager] waiting for goal to complete")
-            time.sleep(0.1)
+            time.sleep(5)
 
         return True
 
