@@ -125,14 +125,21 @@ def generate_launch_description():
         )
 
         log_dir = Path.home() / "data/bags"
+        log_dir.mkdir(exist_ok=True, parents=True)
+
         n_bags = len(list(log_dir.glob("*")))
         bag_name = str(
-            log_dir / f"{n_bags}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
+            log_dir / f"{n_bags}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
         )
+
+        print(bag_name)
 
         launch_record = IncludeLaunchDescription(
             record_launch_path,
-            launch_arguments={"namespace": namespace, "output_bag": bag_name},
+            launch_arguments=[
+                ("namespace", namespace), 
+                ("output_bag", bag_name)
+            ]
         )
 
         launch_process.append(launch_record)
