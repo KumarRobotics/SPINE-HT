@@ -66,6 +66,8 @@ def generate_launch_description():
                 [namespace_arg, "/grounding_dino_node/detections_marker"],
                 [namespace_arg, "/goal_pose"],
                 [namespace_arg, "/plan"],
+                [namespace_arg, "/local_plan"],
+                [namespace_arg, "/local_costmap/published_footprint"],
                 "/tf",
                 "/tf_static",
                 "-o",
