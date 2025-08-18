@@ -23,8 +23,8 @@ def generate_launch_description():
 
     msg_throttles = [
         (
-            [namespace_arg, "/zed/depth/depth_registered/compressed"],
-            [namespace_arg, "/zed/throttled/depth/depth_registered/compressed"],
+            [namespace_arg, "/zed/depth/depth_registered"],
+            [namespace_arg, "/zed/throttled/depth/depth_registered"],
         ),
         (
             [namespace_arg, "/zed/rgb/image_rect_color/compressed"],
@@ -58,6 +58,7 @@ def generate_launch_description():
                 [namespace_arg, "/dlio/odom_node/odom"],
                 [namespace_arg, "/zed/throttled/depth/depth_registered/compressed"],
                 [namespace_arg, "/zed/throttled/rgb/image_rect_color/compressed"],
+                [namespace_arg, "/zed/throttled/depth/depth_info"],
                 [namespace_arg, "/local_costmap/costmap"],
                 [namespace_arg, "/global_costmap/costmap"],
                 [namespace_arg, "/grounding_dino_node/detections"],
