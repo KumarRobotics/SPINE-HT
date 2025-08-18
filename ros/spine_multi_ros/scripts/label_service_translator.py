@@ -67,7 +67,11 @@ class LabelServiceTranslator(Node):
         )
 
     def _req_cbk(self, req: LabelRequest) -> None:
-        if req.idx in self._label_query_dict:
+        self.get_logger().info(
+            f"[label service translator] got req for {req.idx}"
+        )
+ 
+        if req.idx not in self._label_query_dict:
             self._process_request(req)
 
 
@@ -99,6 +103,11 @@ class LabelServiceTranslator(Node):
                 time.sleep(5.0)
             except Exception as ex:
                 self.get_logger().info(f"[label service translator] got ex: {ex}")
+
+        self.get_logger().info(
+            f"[label service translator] done with {req.idx}"
+        )
+
 
     def _ack_cbk(self, msg: Int16) -> None:
         self.get_logger().info(f"[label service translator] got ack for {msg.data}")

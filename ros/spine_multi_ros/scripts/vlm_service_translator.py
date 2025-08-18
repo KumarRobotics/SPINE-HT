@@ -65,7 +65,7 @@ class VLMServiceTranslator(Node):
         self._status_update_pub = self.create_publisher(VLMResponse, "vlm_response", 10)
 
     def _req_cbk(self, req: VLMRequest) -> None:
-        if req.idx in self._vlm_query_dict:
+        if req.idx not in self._vlm_query_dict:
             self._process_request(req)
 
 
