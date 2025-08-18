@@ -21,11 +21,11 @@ class LabelServiceTranslator(Node):
 
         self.declare_parameters(
             namespace="",
-            parameters=[("label_service", "detector/set_labels"), ("max_pub_count", 5)],
+            parameters=[("label_service", "detector/set_labels"), ("max_pub_count", 3)],
         )
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
+            reliability=ReliabilityPolicy.RELIABLE,
             # history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
@@ -63,13 +63,15 @@ class LabelServiceTranslator(Node):
         )
 
         self._status_update_pub = self.create_publisher(
-            LabelResponse, "label_response", 10
+            LabelResponse, "label_response", qos_profile
         )
 
     def _req_cbk(self, req: LabelRequest) -> None:
         if req.idx in self._label_query_dict:
-            return
+            self._process_request(req)
 
+
+    def _process_request(self, req: LabelRequest):
         self._label_query_dict[req.idx] = LabelReq(idx=req.idx, ack=False)
 
         success = self._set_labels(req.labels.data)
@@ -88,8 +90,7 @@ class LabelServiceTranslator(Node):
                     self.get_logger().info(
                         f"[label service translator] have ack for {req.idx}"
                     )
-         
-                    return
+                    break
 
                 self.get_logger().info(
                     f"[label service translator] sending answer for {req.idx}: {success}"

@@ -47,7 +47,7 @@ class LabelManagerTopic(LabelManager):
         self._query_dict: Dict[int, LabelResp] = {}
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
+            reliability=ReliabilityPolicy.RELIABLE,
             # history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
@@ -73,18 +73,16 @@ class LabelManagerTopic(LabelManager):
 
     def _req_status_ckb(self, msg: LabelResponse) -> None:
         if msg.idx not in self._query_dict:
-            return
+            self._query_dict[msg.idx].success = msg.success
+            self._query_dict[msg.idx].ack = True
 
-        self._query_dict[msg.idx].success = msg.success
-        self._query_dict[msg.idx].ack = True
+            ack_msg = Int16()
+            ack_msg.data = msg.idx
+            self._ack_pub.publish(ack_msg)
 
-        ack_msg = Int16()
-        ack_msg.data = msg.idx
-        self._ack_pub.publish(ack_msg)
-
-        self._parent_node.get_logger().info(
-            f"[label manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
-        )
+        # self._parent_node.get_logger().info(
+        #     f"[label manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
+        # )
 
     def _set_labels(self, label_list: str) -> Tuple[bool, str]:
         self._current_query_idx += 1

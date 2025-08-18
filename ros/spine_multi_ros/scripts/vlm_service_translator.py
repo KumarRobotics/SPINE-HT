@@ -21,7 +21,7 @@ class VLMServiceTranslator(Node):
 
         self.declare_parameters(
             namespace="",
-            parameters=[("vlm_service", "vlm_node/query_scene"), ("max_pub_count", 5)],
+            parameters=[("vlm_service", "vlm_node/query_scene"), ("max_pub_count", 3)],
         )
 
         qos_profile = QoSProfile(
@@ -66,8 +66,10 @@ class VLMServiceTranslator(Node):
 
     def _req_cbk(self, req: VLMRequest) -> None:
         if req.idx in self._vlm_query_dict:
-            return
+            self._process_request(req)
 
+
+    def _process_request(self, req: VLMRequest):
         self._vlm_query_dict[req.idx] = VLMReq(idx=req.idx, ack=False)
 
         success, resp = self._query_vlm(req.query.data)
@@ -79,7 +81,7 @@ class VLMServiceTranslator(Node):
 
         for _ in range(self._max_pub_count):
             if self._vlm_query_dict[req.idx].ack:
-                return
+                break
 
             self.get_logger().info(
                 f"[vlm service translator] sending answer for {req.idx}: {resp}"

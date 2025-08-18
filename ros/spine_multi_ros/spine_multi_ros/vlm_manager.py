@@ -49,7 +49,7 @@ class VLMManagerTopic(VLMManager):
         self._query_dict: Dict[int, VLMResp] = {}
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
+            reliability=ReliabilityPolicy.RELIABLE,
             # history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
@@ -78,14 +78,12 @@ class VLMManagerTopic(VLMManager):
 
     def _req_status_ckb(self, msg: VLMResponse) -> None:
         if msg.idx not in self._query_dict:
-            return
+            self._query_dict[msg.idx].answer = msg.answer.data
+            self._query_dict[msg.idx].ack = True
 
-        self._query_dict[msg.idx].answer = msg.answer.data
-        self._query_dict[msg.idx].ack = True
-
-        ack_msg = Int16()
-        ack_msg.data = msg.idx
-        self._ack_pub.publish(ack_msg)
+            ack_msg = Int16()
+            ack_msg.data = msg.idx
+            self._ack_pub.publish(ack_msg)
 
         # self._parent_node.get_logger().info(
         #    f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
