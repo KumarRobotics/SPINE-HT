@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import LabelRequest, LabelResponse
 
@@ -48,7 +48,7 @@ class LabelManagerTopic(LabelManager):
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
-            # history=HistoryPolicy.KEEP_LAST,
+            history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
 
@@ -72,7 +72,7 @@ class LabelManagerTopic(LabelManager):
         )
 
     def _req_status_ckb(self, msg: LabelResponse) -> None:
-        if msg.idx not in self._query_dict:
+        if msg.idx in self._query_dict:
             self._query_dict[msg.idx].success = msg.success
             self._query_dict[msg.idx].ack = True
 
@@ -104,7 +104,7 @@ class LabelManagerTopic(LabelManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._label_req_pub.publish(req_msg)
-            time.sleep(5)
+            # time.sleep(5)
             self._parent_node.get_logger().info(
                 f"[label manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {label_list}"
             )

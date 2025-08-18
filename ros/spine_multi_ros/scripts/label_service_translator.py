@@ -7,7 +7,7 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from spine_multi_ros.set_label_manager import LabelReq
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import LabelRequest, LabelResponse
@@ -26,7 +26,7 @@ class LabelServiceTranslator(Node):
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
-            # history=HistoryPolicy.KEEP_LAST,
+            history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
 
@@ -100,7 +100,7 @@ class LabelServiceTranslator(Node):
                     f"[label service translator] sending answer for {req.idx}: {success}"
                 )
                 self._status_update_pub.publish(resp_msg)
-                time.sleep(5.0)
+                # time.sleep(5.0)
             except Exception as ex:
                 self.get_logger().info(f"[label service translator] got ex: {ex}")
 

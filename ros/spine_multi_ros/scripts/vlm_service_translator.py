@@ -7,7 +7,7 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from spine_multi_ros.vlm_manager import VLMReq
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import VLMRequest, VLMResponse
@@ -26,7 +26,7 @@ class VLMServiceTranslator(Node):
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
+            history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
 
@@ -87,7 +87,7 @@ class VLMServiceTranslator(Node):
                 f"[vlm service translator] sending answer for {req.idx}: {resp}"
             )
             self._status_update_pub.publish(resp_msg)
-            time.sleep(5.0)
+            # time.sleep(5.0)
 
     def _ack_cbk(self, msg: Int16) -> None:
         self.get_logger().info(f"[vlm service translator] got ack for {msg.data}")
