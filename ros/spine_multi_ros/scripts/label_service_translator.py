@@ -77,36 +77,48 @@ class LabelServiceTranslator(Node):
 
     def _process_request(self, req: LabelRequest):
         self._label_query_dict[req.idx] = LabelReq(idx=req.idx, ack=False)
+        self._call_set_labels_async(req)
 
-        success = self._set_labels(req.labels.data)
+    def _call_set_labels_async(self, req: LabelRequest):
+        request = SetLabels.Request()
+        request.labels = ascii(req.labels.data)
+        
+        self.get_logger().info(f"[label service translator] calling set_labels async for {req.idx}")
+        
+        future = self._label_client.call_async(request)
+        future.add_done_callback(lambda f: self._handle_service_response(f, req))
 
+    def _handle_service_response(self, future, req: LabelRequest):
+        try:
+            response = future.result()
+            success = response.success
+            self.get_logger().info(f"[label service translator] service returned {success} for {req.idx}")
+        except Exception as e:
+            self.get_logger().error(f"Service call failed for {req.idx}: {e}")
+            success = False
+        
+        # Now start the publishing loop
         resp_msg = LabelResponse()
         resp_msg.idx = req.idx
         resp_msg.success = success
+        
+        self._start_response_publishing(resp_msg, 0)
 
-        self.get_logger().info(
-            f"[label service translator] set label success for {req.idx}: {success}"
-        )
- 
-        for _ in range(self._max_pub_count):
-            try:
-                if self._label_query_dict[req.idx].ack:
-                    self.get_logger().info(
-                        f"[label service translator] have ack for {req.idx}"
-                    )
-                    break
-
-                self.get_logger().info(
-                    f"[label service translator] sending answer for {req.idx}: {success}"
-                )
-                self._status_update_pub.publish(resp_msg)
-                # time.sleep(5.0)
-            except Exception as ex:
-                self.get_logger().info(f"[label service translator] got ex: {ex}")
-
-        self.get_logger().info(
-            f"[label service translator] done with {req.idx}"
-        )
+    def _start_response_publishing(self, resp_msg: LabelResponse, attempt: int):
+        if attempt >= self._max_pub_count:
+            return
+            
+        if resp_msg.idx in self._label_query_dict and self._label_query_dict[resp_msg.idx].ack:
+            self.get_logger().info(f"[label service manager] Got ack for {resp_msg.idx}, stopping")
+            return
+        
+        self.get_logger().info(f"[label service manager] Publishing response {attempt+1}/{self._max_pub_count} for {resp_msg.idx}")
+        self._status_update_pub.publish(resp_msg)
+        
+        # Schedule next attempt (non-blocking)
+        timer = self.create_timer(5.0, lambda: self._start_response_publishing(resp_msg, attempt + 1))
+        timer.cancel()  
+            
 
 
     def _ack_cbk(self, msg: Int16) -> None:
