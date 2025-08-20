@@ -43,8 +43,8 @@ controller_server:
       time_steps: 56
       model_dt: 0.05
       batch_size: 2000
-      ax_max: 20.0
-      ax_min: -20.0
+      ax_max: 15.0
+      ax_min: -13.0
       ay_max: 10.0
       az_max: 10.5
       vx_std: 0.8
@@ -113,7 +113,7 @@ controller_server:
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 14.0
+        cost_weight: 20.0
         max_path_occupancy_ratio: 0.05
         trajectory_point_step: 4
         threshold_to_consider: 0.5
