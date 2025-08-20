@@ -155,7 +155,7 @@ local_costmap:
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 0.25
+        cost_scaling_factor: 0.1
         inflation_radius: 0.4
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
@@ -224,7 +224,7 @@ global_costmap:
       #   map_subscribe_transient_local: true
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 0.5
+        cost_scaling_factor: 0.25
         inflation_radius: 0.4
 
 
