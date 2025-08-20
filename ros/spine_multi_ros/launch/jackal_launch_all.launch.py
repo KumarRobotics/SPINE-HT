@@ -26,6 +26,11 @@ def generate_launch_description():
     should_bag_arg = DeclareLaunchArgument(
         "record", default_value="false", description="Use simulation time"
     )
+    detection_confidence_arg = DeclareLaunchArgument(
+        "detection_confidence", default_value="0.5", description="detection confidence"
+    )
+
+ 
 
     # get pkgs and configs
     pkg_spine_multi = get_package_share_directory("spine_multi_ros")
@@ -37,6 +42,7 @@ def generate_launch_description():
     namespace = LaunchConfiguration("robot_namespace")
     use_sim_time = LaunchConfiguration("use_sim_time")
     record = LaunchConfiguration("record")
+    detection_confidence = LaunchConfiguration("detection_confidence")
 
     nav2_config_name = ["nav2_", namespace, ".yaml"]
 
@@ -80,6 +86,7 @@ def generate_launch_description():
                     ("input_rgb_topic", "zed/left/image_rect_color"),
                     ("input_depth_topic", "zed/depth/depth_registered"),
                     ("camera_info_topic", "zed/depth/camera_info"),
+                    ("confidence", detection_confidence),
                 ],
             ),
             Node(
@@ -116,6 +123,7 @@ def generate_launch_description():
         robot_namespace_arg,
         use_sim_time_arg,
         should_bag_arg,
+        detection_confidence_arg,
         namespaced_group,
     ]
 
