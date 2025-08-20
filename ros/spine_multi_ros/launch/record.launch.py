@@ -49,22 +49,21 @@ def generate_launch_description():
             )
         )
 
-    image_compressor_node = Node(
-        package='image_transport',
-        executable='republish',
-        name='image_compressor',
-        arguments=[
-            'raw', 'compressed',
-            '--ros-args',
-            '-r', ['in:=', namespace_arg, "grounding_dino_node/detection_img"],
-            '-r', ['out:=', namespace_arg, "grounding_dino_node/detection_img/compressed"],
-            '-p', ['compressed.jpeg_quality:=80']
-        ],
-        output='screen'
-    )
+    # image_compressor_node = Node(
+    #     package='image_transport',
+    #     executable='republish',
+    #     name='image_compressor',
+    #     arguments=[
+    #         'raw', 'compressed',
+    #         '--ros-args',
+    #         '-r', ['in:=', namespace_arg, "grounding_dino_node/detection_img"],
+    #         '-r', ['out:=', namespace_arg, "grounding_dino_node/detection_img/compressed"],
+    #         '-p', ['compressed.jpeg_quality:=80']
+    #     ],
+    #     output='screen'
+    # )
 
     ld.append(
-        image_compressor_node,
         ExecuteProcess(
             cmd=[
                 "ros2",
@@ -77,7 +76,7 @@ def generate_launch_description():
                 [namespace_arg, "/local_costmap/costmap"],
                 [namespace_arg, "/global_costmap/costmap"],
                 [namespace_arg, "/grounding_dino_node/detections"],
-                [namespace_arg, "/grounding_dino_node/detection_img/compressed"],
+                [namespace_arg, "/grounding_dino_node/detection_img"],
                 [namespace_arg, "/cmd_vel"],
                 [namespace_arg, "/grounding_dino_node/detections_marker"],
                 [namespace_arg, "/goal_pose"],
