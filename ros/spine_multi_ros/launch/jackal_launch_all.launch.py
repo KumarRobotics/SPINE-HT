@@ -129,7 +129,7 @@ def generate_launch_description():
 
         n_bags = len(list(log_dir.glob("*")))
         bag_name = str(
-            log_dir / f"{n_bags}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
+            log_dir / f"{n_bags:03d}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
         )
 
         print(bag_name)
