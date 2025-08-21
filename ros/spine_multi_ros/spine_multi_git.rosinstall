@@ -7,3 +7,7 @@ repositories:
     type: git 
     url: git@github.com:ZacRavichandran/vision-ros2.git
     version: main
+  groundgrid:
+    type: git
+    url: git@github.com:ZacRavichandran/groundgrid_ros2.git
+    version: main
