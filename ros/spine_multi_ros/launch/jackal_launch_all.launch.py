@@ -64,13 +64,13 @@ def generate_launch_description():
 
     # launch everything in a namespace
     namespaced_group = GroupAction(
-        IncludeLaunchDescription( # TODO should be in ns group?
-            launch_groundgrid,
-            launch_arguments=[
-                ("namespace", namespace)
-            ],
-        ),
         actions=[
+            IncludeLaunchDescription( # TODO should be in ns group?
+                launch_groundgrid,
+                launch_arguments=[
+                    ("namespace", namespace)
+                ],
+            ),
             IncludeLaunchDescription( # TODO should this be namespaced too ?
                 launch_groundgrid,
                 launch_arguments=[
