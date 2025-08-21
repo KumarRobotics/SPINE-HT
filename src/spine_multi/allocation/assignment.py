@@ -14,21 +14,31 @@ class TaskDescription:
     id: str
     requirements: List[str] = field(default_factory=list)
     cost_per_robot: Dict[str, float] = field(default_factory=dict)
+    location: np.ndarray = field(default_factory=lambda : np.array([]))
 
     # hang on to extra info.
     args: List[str] = field(default_factory=list)
     kwargs: List[str] = field(default_factory=dict)
 
     def __hash__(self):
-        return hash(
-            (
-                self.id,
-                tuple(self.requirements),
-                tuple(sorted(self.cost_per_robot.items())),
-                tuple(self.args),
-                tuple(sorted(self.kwargs.items())),
-            )
-        )
+        return hash(self.id.replace('"', '').replace("'", ''))
+
+
+    def __eq__(self, other):
+        if not hasattr(other, 'id'):
+            return False
+        # Only compare based on ID (matching your hash logic)
+        return self.id == other.id
+
+        # return hash(
+        #     (
+        #         self.id,
+        #         tuple(self.requirements),
+        #         tuple(sorted(self.cost_per_robot.items())),
+        #         tuple(self.args),
+        #         tuple(sorted(self.kwargs.items())),
+        #     )
+        # )
 
 
 @dataclass
@@ -36,17 +46,20 @@ class RobotDescription:
     id: str
     type: str
     capabilities: List[str]
+    location: np.ndarray
 
 
 class RobotTaskAssigment:
-    def __init__(self):
-        self._robots: List[RobotDescription] = []
+    def __init__(self, logger):
+        self._robots: Dict[str, RobotDescription] = {}
         self._default_feasible_cost = 1.0
         self._default_infeasible_cost = 1000.0
         self._assigned_tasks = set()
+        self._logger = logger
 
     def add_robots(self, robots: List[RobotDescription]) -> None:
-        self._robots.extend(robots)
+        for robot in robots:
+            self._robots[robot.id] = robot
 
     def _build_cost_matrix(self, tasks: List[TaskDescription]) -> np.ndarray:
         n_robots = len(self._robots)
@@ -54,11 +67,15 @@ class RobotTaskAssigment:
 
         cost_matrix = np.full((n_robots, n_tasks), self._default_infeasible_cost)
 
-        for i, robot in enumerate(self._robots):
+        for i, robot in enumerate(self._robots.values()):
             for j, task in enumerate(tasks):
                 if self._robot_can_do_task(robot, task):
                     if robot.id in task.cost_per_robot:
-                        cost_matrix[i, j] = task.cost_per_robot[robot.id]
+                        dist = 0
+                        if len(robot.location) > 0 and len(task.location) > 0:
+                            dist = np.linalg.norm(robot.location - task.location)
+
+                        cost_matrix[i, j] = task.cost_per_robot[robot.id] + dist
                     else:
                         cost_matrix[i, j] = self._default_feasible_cost
 
@@ -94,7 +111,7 @@ class RobotTaskAssigment:
         """
         diff = len(self._robots) - len(tasks)
 
-        cost_per_robot = {n.id: self._default_infeasible_cost for n in self._robots}
+        cost_per_robot = {n.id: self._default_infeasible_cost for n in self._robots.values()}
 
         augmented_tasks = []
         augmented_tasks.extend(tasks)
@@ -168,13 +185,13 @@ class RobotTaskAssigment:
 
         assigned_tasks = []
 
-        for i in range(len(self._robots)):
+        for i, robot in enumerate(self._robots.values()):
             for j in range(len(tasks)):
                 if (
                     solution[i, j] > 0.5
                     and cost_matrix[i, j] < self._default_infeasible_cost
                 ):
-                    assignments.append((self._robots[i].id, tasks[j].id))
+                    assignments.append((robot.id, tasks[j].id))
                     total_cost += cost_matrix[i, j]
 
                     assigned_tasks.append(tasks[j])

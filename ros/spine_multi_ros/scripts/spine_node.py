@@ -2,6 +2,8 @@
 
 from collections.abc import Sequence
 from typing import List, Tuple
+from pathlib import Path
+from datetime import datetime
 
 import numpy as np
 import rclpy
@@ -16,6 +18,7 @@ from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from spine_multi.logging import get_logger
 from spine_multi_ros.action_manager import ActionManager
 from spine_multi_ros.nav_manager import (
     NavigationComponentAction,
@@ -23,6 +26,7 @@ from spine_multi_ros.nav_manager import (
 )
 from spine_multi_ros.tracker_client import TrackerClientComponenet
 from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
+
 from teaming_msgs.srv import Mission, Query
 
 
@@ -53,11 +57,11 @@ class SPINE_node(Node):
         self._prompt_former = UpdatePromptFormer()
 
         if use_actions:
-            self._nav_component = NavigationComponentAction(self, frame_id=target_frame)
+            self._nav_component = NavigationComponentAction(self, frame_id=target_frame, robot_name="robot")
             self._vlm_manager = VLMManagerAction(parent_node=self)
         else:
-            self._nav_component = NavigationComponentTopic(self)
-            self._vlm_manager = VLMManagerTopic(parent_node=self)
+            self._nav_component = NavigationComponentTopic(self, robot_name="robot")
+            self._vlm_manager = VLMManagerTopic(parent_node=self, robot_name="robot")
 
         self._graph_viz = GraphVisualizerComponent(
             parent_node=self,
@@ -74,6 +78,8 @@ class SPINE_node(Node):
 
         self.get_logger().info("[spine node] tracker init")
 
+        self._logger = get_logger(name="spine_multi", output="both", filename=self._get_log_fname())
+
 
         # vlm_cbk_group = ReentrantCallbackGroup()
         # self._vlm_client = self.create_client(
@@ -85,6 +91,8 @@ class SPINE_node(Node):
 
         self._action_manager = ActionManager(
             parent_node=self,
+            robot_name="robot",
+            logger=self._logger,
             graph=self._graph,
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
@@ -120,6 +128,13 @@ class SPINE_node(Node):
         )
 
         self.get_logger().info("[spine node] initialized")
+
+    def _get_log_fname(self):
+        # TODO refactor
+        log_dir = Path.home() / "logs/spine-multi-logs"
+        log_dir.mkdir(exist_ok=True, parents=True)
+        nfiles = len(list(log_dir.glob("*log")))
+        return log_dir / f"{nfiles}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log"
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
         # self.get_logger().info('[spine node] get costmap')

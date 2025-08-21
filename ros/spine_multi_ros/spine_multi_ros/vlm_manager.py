@@ -6,7 +6,7 @@ from typing import Dict, Tuple
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import VLMRequest, VLMResponse
 from teaming_msgs.srv import Query
@@ -49,8 +49,8 @@ class VLMManagerTopic(VLMManager):
         self._query_dict: Dict[int, VLMResp] = {}
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
 
@@ -77,15 +77,13 @@ class VLMManagerTopic(VLMManager):
         )
 
     def _req_status_ckb(self, msg: VLMResponse) -> None:
-        if msg.idx not in self._query_dict:
-            return
+        if msg.idx in self._query_dict:
+            self._query_dict[msg.idx].answer = msg.answer.data
+            self._query_dict[msg.idx].ack = True
 
-        self._query_dict[msg.idx].answer = msg.answer.data
-        self._query_dict[msg.idx].ack = True
-
-        ack_msg = Int16()
-        ack_msg.data = msg.idx
-        self._ack_pub.publish(ack_msg)
+            ack_msg = Int16()
+            ack_msg.data = msg.idx
+            self._ack_pub.publish(ack_msg)
 
         # self._parent_node.get_logger().info(
         #    f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
@@ -114,7 +112,7 @@ class VLMManagerTopic(VLMManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._goal_req_pub.publish(req_msg)
-            time.sleep(5)
+            # time.sleep(5)
             # self._parent_node.get_logger().info(
             #     f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
             # )

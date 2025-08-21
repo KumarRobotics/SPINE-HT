@@ -49,12 +49,29 @@ def generate_launch_description():
             )
         )
 
+    # image_compressor_node = Node(
+    #     package='image_transport',
+    #     executable='republish',
+    #     name='image_compressor',
+    #     arguments=[
+    #         'raw', 'compressed',
+    #         '--ros-args',
+    #         '-r', ['in:=', namespace_arg, "grounding_dino_node/detection_img"],
+    #         '-r', ['out:=', namespace_arg, "grounding_dino_node/detection_img/compressed"],
+    #         '-p', ['compressed.jpeg_quality:=80']
+    #     ],
+    #     output='screen'
+    # )
+
     ld.append(
         ExecuteProcess(
             cmd=[
                 "ros2",
                 "bag",
                 "record",
+                "-d", "60",
+                "--compression-mode", "file",
+                "--compression-format", "zstd",
                 [namespace_arg, "/dlio/odom_node/odom"],
                 [namespace_arg, "/zed/throttled/depth/depth_registered/compressed"],
                 [namespace_arg, "/zed/throttled/rgb/image_rect_color/compressed"],
@@ -69,6 +86,7 @@ def generate_launch_description():
                 [namespace_arg, "/plan"],
                 [namespace_arg, "/local_plan"],
                 [namespace_arg, "/local_costmap/published_footprint"],
+                [namespace_arg, "/graph_viz"],
                 "/tf",
                 "/tf_static",
                 "-o",
