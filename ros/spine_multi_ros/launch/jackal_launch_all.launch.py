@@ -29,7 +29,6 @@ def generate_launch_description():
     detection_confidence_arg = DeclareLaunchArgument(
         "detection_confidence", default_value="0.5", description="detection confidence"
     )
-
  
 
     # get pkgs and configs
@@ -56,11 +55,22 @@ def generate_launch_description():
         [vision_pkg, "launch", "vision_jackal.launch.py"]
     )
 
+    groundgrid_pkg = get_package_share_directory("groundgrid")
+    launch_groundgrid = PathJoinSubstitution(
+        [groundgrid_pkg, "launch", "ground_grid.launch.py"]
+    )
+
     robot_map_frame = ["map_", namespace]
 
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
+            IncludeLaunchDescription( # TODO should this be namespaced too ?
+                launch_groundgrid,
+                launch_arguments=[
+                    ("namespace", namespace)
+                ],
+            ),
             PushRosNamespace(LaunchConfiguration("robot_namespace")),
             IncludeLaunchDescription(
                 jackal_static_transforms,
