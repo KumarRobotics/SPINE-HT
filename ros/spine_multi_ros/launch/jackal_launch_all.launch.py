@@ -29,7 +29,6 @@ def generate_launch_description():
     detection_confidence_arg = DeclareLaunchArgument(
         "detection_confidence", default_value="0.5", description="detection confidence"
     )
-
  
 
     # get pkgs and configs
@@ -72,6 +71,12 @@ def generate_launch_description():
             ],
         ),
         actions=[
+            IncludeLaunchDescription( # TODO should this be namespaced too ?
+                launch_groundgrid,
+                launch_arguments=[
+                    ("namespace", namespace)
+                ],
+            ),
             PushRosNamespace(LaunchConfiguration("robot_namespace")),
             IncludeLaunchDescription(
                 jackal_static_transforms,
