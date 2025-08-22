@@ -1,11 +1,9 @@
-from typing import Tuple, List, Dict, Any
+from typing import Any, Dict, List, Tuple
+
 import networkx as nx
-
-
 import numpy as np
+
 from spine_multi.spine.mapping.graph_util import GraphHandler
-
-
 
 
 class MultiRobotGraphHandler:
@@ -16,15 +14,14 @@ class MultiRobotGraphHandler:
     def get_graph(self) -> GraphHandler:
         return self._graph
 
-
     def get_current_location(self) -> str:
         return self._current_location
 
     def get_node_coords(self, node: str) -> Tuple[np.ndarray, bool]:
         return self._graph.get_node_coords(node)
 
-    def get_node_coord(self, node: str)-> np.ndarray:
-        return self._graph.get_node_coord(node) 
+    def get_node_coord(self, node: str) -> np.ndarray:
+        return self._graph.get_node_coord(node)
 
     def remove_edge(self, start: str, end: str) -> None:
         return self._graph.remove_edge(start, end)

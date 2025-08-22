@@ -9,6 +9,7 @@ class UpdatePromptFormer:
         self.location_updates = []
         self.attribute_updates = []
         self.freeform_updates = []
+        self.have_updates = False
 
     def update(
         self,
@@ -19,6 +20,7 @@ class UpdatePromptFormer:
         location_updates: List[str] = [],
         attribute_updates: List[Dict[str, str]] = [],
         freeform_updates: List[str] = [],
+        register_updates: bool = True,
     ):
         self.new_nodes.extend(new_nodes)
         self.new_connections.extend(new_connections)
@@ -26,8 +28,13 @@ class UpdatePromptFormer:
         self.location_updates.extend(location_updates)
         self.attribute_updates.extend(attribute_updates)
         self.freeform_updates.extend(freeform_updates)
+        self.have_updates = register_updates
+
+    def do_have_updates(self) -> bool:
+        return self.have_updates
 
     def form_updates(self):
+        self.have_updates = False
         update_str = ""
         if len(self.new_nodes):
             new_node_str = "add_nodes("

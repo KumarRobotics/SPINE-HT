@@ -2,7 +2,7 @@ import re
 from typing import Any, Dict, List, Tuple
 
 
-def parse_function_call(input_str: str) -> Tuple[str, List[str], Dict[str, str]]:
+def _parse_function_call(input_str: str) -> Tuple[str, List[str], Dict[str, str]]:
     # Match function name and arguments part
     match = re.match(r"(\w+)\((.*)\)", input_str.strip())
     if not match:
@@ -42,3 +42,15 @@ def parse_function_call(input_str: str) -> Tuple[str, List[str], Dict[str, str]]
             pos_args.append(eval(arg))
 
     return func_name, pos_args, kw_args
+
+
+def parse_function_call(
+    input_str: str, logging=None
+) -> Tuple[str, List[str], Dict[str, str]]:
+    try:
+        return _parse_function_call(input_str=input_str)
+    except Exception as ex:
+        log_msg = f"caught exception {ex} from input {input_str}"
+        print(log_msg)
+        if logging != None:
+            logging.info(log_msg)

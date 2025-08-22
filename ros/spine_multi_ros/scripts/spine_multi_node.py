@@ -9,19 +9,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+import numpy as np
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from spine_multi.collaborator import (FALCON_4_CAPABILITIES,
-                                      HUSKY_CAPABILITIES, JACKAL_CAPABILITIES,
-                                      Collaborator, RobotDescription)
+from spine_multi.collaborator import (
+    FALCON_4_CAPABILITIES,
+    HUSKY_CAPABILITIES,
+    JACKAL_CAPABILITIES,
+    Collaborator,
+    RobotDescription,
+)
 from spine_multi.logging import get_logger
 from spine_multi.spine.class_llm import ClassLLM
 from spine_multi.spine.mapping.graph_util import GraphHandler
-from teaming_msgs.srv import Mission
-
 from spine_multi_ros.autonomy_manager import AutonomyManager
+from teaming_msgs.srv import Mission
 
 
 # TODO should go into src
@@ -63,10 +67,16 @@ class SPINEMultiNode(Node):
 
         robots = [
             RobotDescription(
-                id="jackal_1", type="jackal", capabilities=JACKAL_CAPABILITIES
+                id="jackal_1",
+                type="jackal",
+                capabilities=JACKAL_CAPABILITIES,
+                location=np.array([]),
             ),
             RobotDescription(
-                id="jackal_2", type="jackal", capabilities=JACKAL_CAPABILITIES
+                id="jackal_2",
+                type="jackal",
+                capabilities=JACKAL_CAPABILITIES,
+                location=np.array([]),
             ),
             # RobotDescription(id="husky_1", type="husky", capabilities=HUSKY_CAPABILITIES),
             # RobotDescription(
@@ -90,7 +100,9 @@ class SPINEMultiNode(Node):
         self.get_logger().info(f"init graph is: {self._graph.to_json_str()}")
         self.get_logger().info(f"team specification: {team_specification}")
 
-        self._logger = get_logger(name="spine_multi_node", output="both", filename=self._get_log_fname())
+        self._logger = get_logger(
+            name="spine_multi_node", output="both", filename=self._get_log_fname()
+        )
 
         self._collaborator = Collaborator(
             team_specification=robots,
@@ -114,14 +126,15 @@ class SPINEMultiNode(Node):
         self.mission_srv = self.create_service(
             Mission, "/spine_multi/mission", self._mission_cbk
         )
-    
+
     def _get_log_fname(self):
-        log_dir = Path.home() / "logs/spine-multi-logs"
+        log_dir = Path.home() / "data/spine-multi-logs"
         log_dir.mkdir(exist_ok=True, parents=True)
         nfiles = len(list(log_dir.glob("*log")))
-        return log_dir / f"{nfiles}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log"
+        return (
+            log_dir / f"{nfiles:03d}-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log"
+        )
 
- 
     def _log_info(self, msg: str) -> None:
         self.get_logger().info(f"[spine multi node] {msg}")
         self._logger.info(msg)
@@ -180,7 +193,6 @@ class SPINEMultiNode(Node):
         return managers
 
     def _set_labels(self, label_set: str) -> List[BehaviorResult]:
-
         # construct tasks
         set_label_assignments = []
         for robot, manager in self._robot_autonomy_managers.items():
@@ -216,13 +228,17 @@ class SPINEMultiNode(Node):
                 break
 
             assignments = allocation_result.translated_assigmnets
+            assignment_str = ""
 
-            self.get_logger().info(f"[spine node] Got assignments: {assignments}")
+            assignment_str += ",".join(
+                [f"{r} was assigned {t}" for (r, t) in allocation_result.assigments]
+            )
+            self.get_logger().info(
+                f"[spine node] Got assignments:\n\t {assignment_str}"
+            )
 
             while len(assignments):  # TODO should have a timeout
-                self._log_info(
-                    f"Assigning the following async: {assignments}"
-                )
+                self._log_info(f"Assigning the following async: {assignments}")
 
                 task_results = self._task_robots_async(assignments, planning_idx)
 
@@ -233,10 +249,26 @@ class SPINEMultiNode(Node):
                         f"\t{result.robot} - {result.behavior} - {result.success} - {result.error}"
                     )
 
+                # breaking conditions:
+                # 1. all tasks have been assigned
+                # 2. any of the robots have updates
+                #   TODO check this. unclear how it will interact w/ 1.
+                # otherwise, we reassign the robots and reiterate
                 if self._collaborator.all_tasks_assigned():
+                    break
+                elif any(
+                    [
+                        autonomy_manager._prompt_former.do_have_updates()
+                        for autonomy_manager in self._robot_autonomy_managers.values()
+                    ]
+                ):
+                    self._log_info(f"Got updates during task execution. Breaking.")
                     break
                 else:
                     assignments = self._collaborator.reassign_tasks()
+                    assignment_str += ",".join(
+                        [f"{r} was assigned {t}" for (r, t) in assignments]
+                    )
 
             # at the end of each planning iteration, empty mapping queue, form updates
             # and send to LLM
@@ -246,12 +278,12 @@ class SPINEMultiNode(Node):
                 robot_feedback = autonomy_manager._prompt_former.form_updates()
                 updates += f"{robot} updates: {robot_feedback}\n"
 
+            updates += f"\nPrevious assignments: {assignment_str}"
+
             self._log_info(f"sending updates: {updates}")
 
             allocation_result = self._collaborator.get_allocation(updates=updates)
-            self._log_info(
-                f"{self._collaborator.get_result_str(allocation_result)}"
-            )
+            self._log_info(f"{self._collaborator.get_result_str(allocation_result)}")
 
         response.resp = allocation_result.mission_answer
         return response

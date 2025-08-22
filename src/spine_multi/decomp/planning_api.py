@@ -1,5 +1,13 @@
 def ugv_navigate(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> bool:
-    """Navigate to a node in the semantic graph. This MUST refer to an existing node."""
+    """Navigate to a node in the semantic graph. This MUST refer to an existing node.
+
+    Parameters
+    ---
+    region_node: str
+        Existing node in the graph
+    ugv_type: str
+        Pick most appropriate option (jackal, husky, or any)
+    """
 
 
 def ugv_inspect(
@@ -8,9 +16,7 @@ def ugv_inspect(
     """Inspect `object_node` for a specific attribute `query`. The query is processed by a vision language model (VLA), and the VLA's answer will be provided."""
 
 
-def ugv_map_region(
-    region_node: str, ugv_type: str = ["either", "jackal", "husky"]
-) -> str:
+def ugv_map_region(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> str:
     """Explore a node in the semantic graph to add additional nodes."""
 
 

@@ -1,9 +1,19 @@
+import inspect
 from collections import namedtuple
 from logging import Logger
 from typing import Tuple
 
 import numpy as np
+import spine_multi.decomp.planning_api as planning_api
 from spine_multi.spine.mapping.graph_util import GraphHandler
+
+# this is a bit cumbersome b/c functions are mapped
+VALID_ACTIONS_MULTI_SUGGEST = [
+    name
+    for name, obj in inspect.getmembers(planning_api, inspect.isfunction)
+    if obj.__module__ == planning_api.__name__
+]
+VALID_ACTIONS_MULTI = set(["goto", "map_region", "inspect", "extend_map" "explore_to"])
 
 ValidPlanFeedback = namedtuple("ValidPlanFeedback", ["success", "message"])
 VALID_ACTIONS = set(
@@ -18,6 +28,7 @@ VALID_ACTIONS = set(
         "replan",
     ]
 )
+
 REGION_ACTIONS = set(["explore_region", "map_region", "goto"])
 NAVIGATION_ACTIONS = set(["explore_region", "map_region", "goto", "inspect"])
 INTERACTION_ACTIONS = set(["explore_region", "map_region", "goto", "inspect"])
@@ -27,8 +38,15 @@ EXPLORE_ACTIONS = set(["explore_region"])
 
 
 class Validator:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, validator_type="multi"):
         self.logger = logger
+
+        if validator_type == "multi":
+            self.valid_actions = VALID_ACTIONS_MULTI
+            self.suggest_actions = VALID_ACTIONS_MULTI_SUGGEST
+        else:
+            self.valid_actions = VALID_ACTIONS
+            self.suggest_actions = VALID_ACTIONS
 
     def try_parse_region_arg(self, arg: str) -> Tuple[bool, np.ndarray]:
         """Try to parse argument for region related action"""
@@ -123,10 +141,10 @@ class Validator:
                 return [], ValidPlanFeedback(False, feedback)
 
             # is valid function
-            if function not in VALID_ACTIONS:
+            if function not in self.valid_actions:
                 feedback = (
                     f"Feedback: {function} is not a valid command. You must use one of the "
-                    f"following commands {list(VALID_ACTIONS)}. Update your plan accordingly."
+                    f"following commands {list(self.suggest_actions)}. Update your plan accordingly."
                 )
                 return [], ValidPlanFeedback(False, feedback)
 
@@ -204,7 +222,9 @@ class Validator:
                 function in OBJECT_ACTIONS
                 and not graph.get_node_type(first_arg) == "object"
             ):
-                feedback = f"Feedback: inspect requires an object, but {first_arg} is a region. Try calling map_region({first_arg}) or explore_region({first_arg}, 3) to get information about the area, depending on the task"
+                # TODO make better
+                # feedback = f"Feedback: inspect requires an object, but {first_arg} is a region. Try calling map_region({first_arg}) or explore_region({first_arg}, 3) to get information about the area, depending on the task"
+                feedback = f"Feedback: inspect requires an object, but {first_arg} is a region. Try calling map_region({first_arg}) to get information about the area, depending on the task"
 
                 return [], ValidPlanFeedback(False, feedback)
             else:

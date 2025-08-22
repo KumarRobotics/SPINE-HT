@@ -75,10 +75,14 @@ PROMPT_TEMPLATE = """
 - In each mission cycle:
 - Ensure that all proposed tasks are executable within the current semantic graph and robot team.
 - Only include tasks currently feasible; defer others.
+- Before returning output, verify all tasks for correctness and completeness.
+
+# Adapting plans
 - Revise in response to feedback or infeasibility by correcting errors or adding intermediate plans; regenerate output.
 - Treat the previous plan as cumulative and authoritative unless instructed to modify otherwise; do not omit or deduplicate executed/planned tasks unless explicitly told to do so.
 - Each output iteration should be a superset of the previous plan unless instructed to remove tasks.
-- Before returning output, verify all tasks for correctness and completeness.
+- You will be given a list of previously completed tasks. Do not duplicate tasks during successive planning iterations. If the task did not return the designed information, calling that task again will not help.
+
 
 ## Sub-categories
 - If the semantic graph is empty and a UAV is available, prioritize initial UAV-led exploration. Otherwise, indicate waiting for additional information.

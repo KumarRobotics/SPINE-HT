@@ -3,7 +3,6 @@ from typing import Dict, List, Tuple
 
 import tiktoken
 from openai import OpenAI
-
 from spine_multi.spine.prompts.prompts import get_base_prompt_update_graph
 
 

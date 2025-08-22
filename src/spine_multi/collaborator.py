@@ -16,7 +16,7 @@ from spine_multi.allocation.translator import (
     translate_task_for_validation,
 )
 from spine_multi.decomp.llm import MissionDecomp
-from spine_multi.logging import get_logger
+from spine_multi.logging import break_long_str, get_logger
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.validator import Validator
 
@@ -50,7 +50,7 @@ class AllocationResult:
     # tasks to be assigned this planning iteration
     assignment_set: List[TaskDescription]
 
-    assigmnets: Tuple[str, str]
+    assigments: Tuple[str, str]
 
     translated_assigmnets: Tuple[str, Tuple[str, List[str]]]
 
@@ -67,8 +67,8 @@ class Collaborator:
         init_location: str,
         logger: logging.Logger,
     ):
-        self._logger = get_logger("spine multi collaborator")
-        self._allocator = RobotTaskAssigment()
+        self._logger = logger
+        self._allocator = RobotTaskAssigment(self._logger)
         self._allocator.add_robots(team_specification)
         self._semantic_graph = semantic_graph
         self._init_location = init_location
@@ -79,8 +79,6 @@ class Collaborator:
         # TODO this is for validation. Need to figure out
         # if this makes sense
         self._semantic_graph._current_location = init_location
-
-        self._logger = logger
 
         # used for reassigning  tasks
         self._iteration_trace = None
@@ -132,6 +130,7 @@ class Collaborator:
         MAX_GENERATIONS = 3
         for generation_attempt_idx in range(MAX_GENERATIONS):
             mission_graph, out = self._mission_decomp.get_mission_graph()
+            # self._logger.info(f"LLM provided graph: {mission_graph} with raw output {out}")
 
             traces = self._mission_decomp.get_mission_traces(mission_graph)
 
@@ -202,7 +201,7 @@ class Collaborator:
             decomposition_log=out,
             mission_traces=traces,
             assignment_set=assigment_tasks,
-            assigmnets=assignments,
+            assigments=assignments,
             translated_assigmnets=translated_assignments,
             mission_is_done=mission_is_done,
             mission_answer="",
@@ -219,7 +218,7 @@ class Collaborator:
             decomposition_log=log,
             mission_traces=[[]],
             assignment_set=[],
-            assigmnets=[],
+            assigments=[],
             translated_assigmnets=[],
             mission_is_done=True,
             mission_answer=answer,
@@ -232,10 +231,14 @@ class Collaborator:
         log += self._mission_decomp.output_log(result.decomposition_log)
         log += f"mission traces:\n"
         for trace in result.mission_traces:
-            log += f"\t{trace}\n"
+            log += f"\t{break_long_str(str(trace))}\n"
         log += "\n"
-        log += f"assignment set:\n\t{result.assignment_set}\n\n"
-        log += f"assignments:\n\t{result.assigmnets}\n\n"
+        log += f"assignment set:\n"
+        for assignment in result.assignment_set:
+            log += f"\t{break_long_str(str(assignment))}\n"
+        log += "\n"
+        log += f"assignments:\n\t{result.assigments}\n\n"
+        log += f"all assigned tasks\n\t{break_long_str(str(self._allocator._assigned_tasks))}\n\n"
         log += f"translated assignments:\n\t{result.translated_assigmnets}\n\n"
         log += f"mission complete:\n\t{result.mission_is_done}\n\n"
         return log

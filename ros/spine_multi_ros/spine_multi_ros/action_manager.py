@@ -39,13 +39,17 @@ class ActionManager:
         self._vlm_client = vlm_client
         self._logger = logger
 
+    def get_location_pos(self) -> np.ndarray:
+        location_in_graph = self._graph.get_current_location()
+        return self._graph.get_node_coord(location_in_graph)
+
     def construct_behavior_library(self) -> Dict[str, Callable]:
         return {
             "extend_map": self._explore_to,
             "goto": self._goto_region,
             "inspect": self._inspect_object_wrapper,
             "explore_region": lambda x: self._goto_region(x[0]),
-            "map_region": self._map_region,  # TODO placeholder
+            "map_region": self._map_region,
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
@@ -87,6 +91,9 @@ class ActionManager:
     def _try_add_edges(self, node_id, coords, node_type) -> Tuple[List[str], List[str]]:
         new_neighbors = self._frontier_extractor.get_missing_neighbors(node_id, coords)
 
+        # remove self edges
+        new_neighbors = [neighbor for neighbor in new_neighbors if neighbor != node_id]
+
         if len(new_neighbors) == 0:
             return []
 
@@ -96,6 +103,8 @@ class ActionManager:
         self._prompt_former.update(new_connections=new_connections)
         attrs = {"coords": coords, "type": node_type}
         self._graph.update_with_node(node=node_id, edges=all_neighbors, attrs=attrs)
+
+        self._graph_viz.set_graph(self._graph.get_graph())
 
         return new_neighbors
 
@@ -243,7 +252,9 @@ class ActionManager:
 
             if nav_success:
                 self._graph.update_location(node)
-                self._prompt_former.update(location_updates=[node])
+                self._prompt_former.update(
+                    location_updates=[node], register_updates=False
+                )
             else:
                 self._prompt_former.update(
                     freeform_updates=[

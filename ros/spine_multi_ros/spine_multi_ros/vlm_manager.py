@@ -6,7 +6,7 @@ from typing import Dict, Tuple
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import VLMRequest, VLMResponse
 from teaming_msgs.srv import Query
@@ -85,9 +85,9 @@ class VLMManagerTopic(VLMManager):
             ack_msg.data = msg.idx
             self._ack_pub.publish(ack_msg)
 
-        # self._parent_node.get_logger().info(
-        #    f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
-        # )
+            self._parent_node.get_logger().info(
+                f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
+            )
 
     def describe_scene(self) -> Tuple[bool, str]:
         return self._query_vlm(self.open_scene_prompt)
@@ -112,10 +112,10 @@ class VLMManagerTopic(VLMManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._goal_req_pub.publish(req_msg)
-            # time.sleep(5)
-            # self._parent_node.get_logger().info(
-            #     f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
-            # )
+            time.sleep(5)
+            self._parent_node.get_logger().info(
+                f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
+            )
 
         answer = self._query_dict[self._current_query_idx].answer
         self._parent_node.get_logger().info(

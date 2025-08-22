@@ -1,13 +1,14 @@
 import logging
+import textwrap
 from pathlib import Path
 
 HOME_DIR = Path().home()
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# logging.basicConfig(
+#     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# )
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 def get_logger(name=None, output="console", filename="app.log", level=logging.INFO):
@@ -47,3 +48,14 @@ def get_logger(name=None, output="console", filename="app.log", level=logging.IN
 
     logger.setLevel(level)
     return logger
+
+
+def break_long_str(in_str: str, max_length: int = 150) -> str:
+    short_strs = textwrap.wrap(in_str, max_length)
+    if len(short_strs) == 0:
+        return in_str
+
+    out = short_strs[0]
+    for segment in short_strs[1:]:
+        out += f"\n\t\t{segment}"
+    return out

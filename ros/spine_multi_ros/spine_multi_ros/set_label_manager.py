@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import LabelRequest, LabelResponse
 
@@ -80,9 +80,9 @@ class LabelManagerTopic(LabelManager):
             ack_msg.data = msg.idx
             self._ack_pub.publish(ack_msg)
 
-        # self._parent_node.get_logger().info(
-        #     f"[label manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
-        # )
+        self._parent_node.get_logger().info(
+            f"[label manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
+        )
 
     def _set_labels(self, label_list: str) -> Tuple[bool, str]:
         self._current_query_idx += 1
@@ -104,14 +104,14 @@ class LabelManagerTopic(LabelManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._label_req_pub.publish(req_msg)
-            # time.sleep(5)
+            time.sleep(5)
             self._parent_node.get_logger().info(
                 f"[label manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {label_list}"
             )
 
         success = self._query_dict[self._current_query_idx].success
         self._parent_node.get_logger().info(
-            f"[labelj manager topic] [{self._robot_name}] got answer for idx {self._current_query_idx}: {success}"
+            f"[label manager topic] [{self._robot_name}] got answer for idx {self._current_query_idx}: {success}"
         )
 
         return True, success

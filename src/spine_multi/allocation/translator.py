@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, List, Tuple, Dict
+from typing import Any, Dict, List, Tuple
 
-from spine_multi.decomp.util import parse_function_call
+from spine_multi.decomp.util import _parse_function_call
 
 
 @dataclass
@@ -22,7 +22,7 @@ FUNCTION_MAPPINGS = {
 
 # TODO repetative
 def translate_task_for_validation(task: str) -> Tuple[str, List[str], Dict[str, str]]:
-    name, args, kwargs = parse_function_call(task)
+    name, args, kwargs = _parse_function_call(task)
     mapped_function = FUNCTION_MAPPINGS[name]
     all_args = args + list(kwargs.values())
     expected_args = all_args[: mapped_function.expected_args]
@@ -37,7 +37,7 @@ def translate_task_for_execution(task: str) -> Tuple[str, List[Any]]:
 
     This is a simple translation layer.
     """
-    name, args, kwargs = parse_function_call(task)
+    name, args, kwargs = _parse_function_call(task)
 
     mapped_function = FUNCTION_MAPPINGS[name]
 

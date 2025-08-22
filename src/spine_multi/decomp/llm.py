@@ -7,7 +7,8 @@ import networkx as nx
 from openai import OpenAI
 from spine_multi.allocation.assignment import TaskDescription
 from spine_multi.decomp.prompts import build_prompt
-from spine_multi.decomp.util import parse_function_call
+from spine_multi.decomp.util import _parse_function_call
+from spine_multi.logging import break_long_str
 
 
 class MissionDecomp:
@@ -148,7 +149,7 @@ class MissionDecomp:
     def _parse_task_trace(self, trace: List[str]) -> List[TaskDescription]:
         parsed_trace = []
         for task in trace:
-            name, args, kwargs = parse_function_call(task)
+            name, args, kwargs = _parse_function_call(task)
             task_requirements = self._parse_task_requirements(name, args, kwargs)
             parsed_trace.append(
                 TaskDescription(
@@ -162,7 +163,7 @@ class MissionDecomp:
         log = ""
         for k, v in output.items():
             log += f"--- {k} ---\n"
-            log += f"{v}\n"
+            log += f"\t{break_long_str(str(v))}\n\n"
 
         return log
 
