@@ -166,7 +166,7 @@ local_costmap:
         z_voxels: 16
         max_obstacle_height: 20.0
         min_obstacle_height: -5.0
-        mark_threshold: 1
+        mark_threshold: 0
 
         observation_sources: pointcloud
 
