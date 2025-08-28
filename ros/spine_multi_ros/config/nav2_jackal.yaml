@@ -171,7 +171,7 @@ local_costmap:
         observation_sources: pointcloud
 
         pointcloud:
-          topic: /ouster/points
+          topic: /groundgrid/obstacle_cloud 
           sensor_frame: os_lidar
           max_obstacle_height: 20.0
           min_obstacle_height: -5.0 
@@ -208,7 +208,7 @@ global_costmap:
         enabled: true
         observation_sources: pointcloud
         pointcloud:
-          topic: /ouster/points
+          topic: /groundgrid/obstacle_cloud 
           max_obstacle_height: 10.0
           min_obstacle_height: -1.0
           clearing: true
