@@ -1,0 +1,40 @@
+{
+"objects": [],
+"regions": [
+    {"name": "courtyard_1", "coords": [0, 0]},
+    {"name": "courtyard_2", "coords": [0, -8]},
+    {"name": "courtyard_3", "coords": [-9, -8]},
+    {"name": "courtyard_4", "coords": [-20.5, -8]},
+    {"name": "sidewalk_1", "coords": [-19.5, -23.5]},
+    {"name": "sidewalk_2", "coords": [-19.5, -33.5]},
+    {"name": "sidewalk_3", "coords": [0, -33.5]},
+    {"name": "parking_lot_1", "coords": [0, -43.5]},
+    {"name": "road_1", "coords": [30, -42]},
+    {"name": "road_2", "coords": [30, -3]},
+    {"name": "road_3", "coords": [30, 33]},
+    {"name": "road_4", "coords": [30, 60]},
+    {"name": "parking_lot_3", "coords": [43, 60]},
+    {"name": "trees_1", "coords": [0, -22]},
+    {"name": "trees_2", "coords": [10, -22]},
+    {"name": "trees_3", "coords": [-10, -22]},
+    {"name": "path_1", "coords": [-26, 0]},
+    {"name": "road_5", "coords": [-56, 0]}
+],
+"object_connections": [
+],
+"region_connections":[
+    ["courtyard_1", "courtyard_2"],
+    ["courtyard_2", "courtyard_3"],
+    ["courtyard_3", "courtyard_4"],
+    ["courtyard_4", "path_1"],
+    ["path_1", "road_5"],
+    ["courtyard_4", "sidewalk_1"],
+    ["sidewalk_2", "sidewalk_3"],
+    ["sidewalk_3", "parking_lot_1"],
+    ["road_1", "road_2"],
+    ["road_2", "road_3"],
+    ["road_3", "road_4"],
+    ["road_4", "parking_lot_3"]
+],
+"robot_location": "courtyard_1"
+}

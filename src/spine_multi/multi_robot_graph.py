@@ -52,3 +52,6 @@ class MultiRobotGraphHandler:
             return self._graph.get_nx_graph().nodes[node], True
         else:
             return {}, False
+
+    def get_region_nodes_and_locs(self) -> Tuple[np.ndarray, np.ndarray]:
+        return self._graph.get_region_nodes_and_locs()

@@ -12,7 +12,7 @@ from rcl_interfaces.srv import SetParameters
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 from scipy.spatial.transform import Rotation
 from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
@@ -108,9 +108,9 @@ class SPINE_node(Node):
         )
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         costmap_cbk_group = ReentrantCallbackGroup()

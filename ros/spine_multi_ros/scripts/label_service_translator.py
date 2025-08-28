@@ -7,7 +7,7 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from spine_multi_ros.set_label_manager import LabelReq
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import LabelRequest, LabelResponse
@@ -21,13 +21,14 @@ class LabelServiceTranslator(Node):
 
         self.declare_parameters(
             namespace="",
-            parameters=[("label_service", "detector/set_labels"), ("max_pub_count", 3)],
+            parameters=[("label_service", "detector/set_labels"), ("max_pub_count", 1),
+                        ("subscription_prefix", "")],
         )
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         set_labe_client_name = (
@@ -38,6 +39,11 @@ class LabelServiceTranslator(Node):
             self.get_parameter("max_pub_count").get_parameter_value().integer_value
         )
 
+        subscription_prefix = (
+            self.get_parameter("subscription_prefix").get_parameter_value().string_value
+        )
+ 
+
         label_cbk_group = ReentrantCallbackGroup()
         self._label_client = self.create_client(
             SetLabels, set_labe_client_name, callback_group=label_cbk_group
@@ -47,7 +53,7 @@ class LabelServiceTranslator(Node):
         sub_cbk_group = ReentrantCallbackGroup()
         self._vlm_req_sub = self.create_subscription(
             LabelRequest,
-            "label_request",
+            subscription_prefix + "label_request",
             self._req_cbk,
             qos_profile,
             callback_group=sub_cbk_group,
@@ -56,7 +62,7 @@ class LabelServiceTranslator(Node):
         ack_sub_group = ReentrantCallbackGroup()
         self._ack_sub = self.create_subscription(
             Int16,
-            "label_ack",
+            subscription_prefix + "label_ack",
             self._ack_cbk,
             qos_profile,
             callback_group=ack_sub_group,

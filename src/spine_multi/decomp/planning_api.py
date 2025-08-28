@@ -17,13 +17,14 @@ def ugv_inspect(
 
 
 def ugv_map_region(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> str:
-    """Explore a node in the semantic graph to add additional nodes."""
+    """Navigate to `region_node,` gather a semantic description, and discover nearby objects."""
 
 
 def ugv_explore_to(
     x: float, y: float, ugv_type: str = ["any", "jackal", "husky"]
 ) -> str:
-    """Explore an (x, y) coordinate to expand the semantic map. Returns map updates."""
+    """Try to add a node near coordinate (x, y) to expand your semantic map. Returns map updates.
+    Note that you may not reach the coordinate exactly."""
 
 
 def uav_fly_to(region_node: str) -> bool:

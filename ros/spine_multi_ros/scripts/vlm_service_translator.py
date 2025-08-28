@@ -7,7 +7,7 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from spine_multi_ros.vlm_manager import VLMReq
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import VLMRequest, VLMResponse
@@ -21,13 +21,17 @@ class VLMServiceTranslator(Node):
 
         self.declare_parameters(
             namespace="",
-            parameters=[("vlm_service", "vlm_node/query_scene"), ("max_pub_count", 3)],
+            parameters=[
+                ("vlm_service", "vlm_node/query_scene"), 
+                ("max_pub_count", 3),
+                ("subscription_prefix", "")
+            ],
         )
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         vlm_query_client_name = (
@@ -37,6 +41,8 @@ class VLMServiceTranslator(Node):
         self._max_pub_count = (
             self.get_parameter("max_pub_count").get_parameter_value().integer_value
         )
+
+        subscription_prefix = self.get_parameter("subscription_prefix").get_parameter_value().string_value
 
         vlm_cbk_group = ReentrantCallbackGroup()
         self._vlm_client = self.create_client(
@@ -49,7 +55,7 @@ class VLMServiceTranslator(Node):
         sub_cbk_group = ReentrantCallbackGroup()
         self._vlm_req_sub = self.create_subscription(
             VLMRequest,
-            "vlm_request",
+            subscription_prefix + "vlm_request",
             self._req_cbk,
             qos_profile,
             callback_group=sub_cbk_group,
@@ -58,7 +64,7 @@ class VLMServiceTranslator(Node):
         ack_sub_group = ReentrantCallbackGroup()
         self._ack_sub = self.create_subscription(
             Int16,
-            "vlm_ack",
+            subscription_prefix + "vlm_ack",
             self._ack_cbk,
             qos_profile,
             callback_group=ack_sub_group,

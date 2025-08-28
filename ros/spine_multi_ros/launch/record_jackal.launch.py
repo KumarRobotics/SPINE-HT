@@ -21,33 +21,18 @@ def generate_launch_description():
     namespace_arg = LaunchConfiguration("namespace")
     output_arg = LaunchConfiguration("output_bag")
 
-    msg_throttles = [
-        (
-            [namespace_arg, "/zed/depth/depth_registered"],
-            [namespace_arg, "/zed/throttled/depth/depth_registered"],
-        ),
-        (
-            [namespace_arg, "/zed/rgb/image_rect_color/compressed"],
-            [namespace_arg, "/zed/throttled/rgb/image_rect_color/compressed"],
-        ),
-        (
-            [namespace_arg, "/zed/depth/depth_info"],
-            [namespace_arg, "/zed/throttled/depth/depth_info"],
-        ),
-    ]
-
     ld = [declare_namespace_arg]
 
-    for idx, (orig_topic, throttle_topic) in enumerate(msg_throttles):
-        ld.append(
-            Node(
-                package="topic_tools",
-                executable="throttle",
-                name=f"throttle_{idx}",
-                arguments=["messages", orig_topic, "1.0", throttle_topic],
-                output="screen",
-            )
-        )
+    # for idx, (orig_topic, throttle_topic) in enumerate(msg_throttles):
+    #     ld.append(
+    #         Node(
+    #             package="topic_tools",
+    #             executable="throttle",
+    #             name=f"throttle_{idx}",
+    #             arguments=["messages", orig_topic, "1.0", throttle_topic],
+    #             output="screen",
+    #         )
+    #     )
 
     # image_compressor_node = Node(
     #     package='image_transport',
@@ -70,12 +55,12 @@ def generate_launch_description():
                 "bag",
                 "record",
                 "-d", "60",
-                "--compression-mode", "file",
-                "--compression-format", "zstd",
+                # "--compression-mode", "file",
+                # "--compression-format", "zstd",
                 [namespace_arg, "/dlio/odom_node/odom"],
-                [namespace_arg, "/zed/throttled/depth/depth_registered/compressed"],
-                [namespace_arg, "/zed/throttled/rgb/image_rect_color/compressed"],
-                [namespace_arg, "/zed/throttled/depth/depth_info"],
+                # [namespace_arg, "/zed/throttled/depth/depth_registered/compressed"],
+                # [namespace_arg, "/zed/throttled/rgb/image_rect_color/compressed"],
+                # [namespace_arg, "/zed/throttled/depth/depth_info"],
                 [namespace_arg, "/local_costmap/costmap"],
                 [namespace_arg, "/global_costmap/costmap"],
                 [namespace_arg, "/grounding_dino_node/detections"],

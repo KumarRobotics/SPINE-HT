@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import LabelRequest, LabelResponse
 
@@ -39,17 +39,20 @@ class LabelManagerTopic(LabelManager):
         label_request: str = "label_request",
         label_response: str = "label_response",
         label_ack: str = "label_ack",
+        subscription_prefix: str = ""
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
+
+        self._label_sleep_time = 30
 
         self._current_query_idx = -1
         self._query_dict: Dict[int, LabelResp] = {}
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         self._label_req_pub = self._parent_node.create_publisher(
@@ -61,7 +64,7 @@ class LabelManagerTopic(LabelManager):
         sub_cbk_group = ReentrantCallbackGroup()
         self._response_sub = self._parent_node.create_subscription(
             LabelResponse,
-            label_response,
+            subscription_prefix + label_response,
             self._req_status_ckb,
             qos_profile,
             callback_group=sub_cbk_group,
@@ -104,7 +107,7 @@ class LabelManagerTopic(LabelManager):
 
         while not self._query_dict[self._current_query_idx].ack:
             self._label_req_pub.publish(req_msg)
-            time.sleep(5)
+            time.sleep(self._label_sleep_time)
             self._parent_node.get_logger().info(
                 f"[label manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {label_list}"
             )

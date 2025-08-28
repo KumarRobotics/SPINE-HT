@@ -9,7 +9,7 @@ from nav_msgs.msg import OccupancyGrid
 from rcl_interfaces.srv import SetParameters
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from scipy.spatial.transform import Rotation
 from spine_multi.multi_robot_graph import MultiRobotGraphHandler
 from spine_multi.spine import GraphHandler
@@ -38,6 +38,7 @@ class AutonomyManager:
         *,
         parent_node: Node,
         robot_name: str,
+        subscription_prefix: str,
         init_graph: GraphHandler,
         init_node: str,
         nav_target_frame: str,
@@ -54,13 +55,14 @@ class AutonomyManager:
         self._parent_node = parent_node
         self._robot_name = robot_name
         self._logger = logger
+        self._subscription_prefix = subscription_prefix
         self._graph = MultiRobotGraphHandler(
             graph_handler=init_graph, init_node=init_node
         )
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
         self._label_manager = LabelManagerTopic(
-            parent_node=parent_node, robot_name=robot_name, **label_params
+            parent_node=parent_node, robot_name=robot_name, subscription_prefix=subscription_prefix, **label_params
         )
 
         # TODO need better handling here
@@ -71,10 +73,10 @@ class AutonomyManager:
             self._vlm_manager = VLMManagerAction(parent_node=parent_node, **vlm_params)
         else:
             self._nav_component = NavigationComponentTopic(
-                parent_node=parent_node, robot_name=robot_name, **navigation_params
+                parent_node=parent_node, robot_name=robot_name, subscription_prefix=subscription_prefix, **navigation_params
             )
             self._vlm_manager = VLMManagerTopic(
-                parent_node=parent_node, robot_name=self._robot_name, **vlm_params
+                parent_node=parent_node, robot_name=self._robot_name, subscription_prefix=subscription_prefix, **vlm_params
             )
 
         self._graph_viz = GraphVisualizerComponent(
@@ -91,6 +93,7 @@ class AutonomyManager:
             self._graph,
             self._prompt_former,
             self._graph_viz,
+            subscription_prefix=subscription_prefix,
             track_topic=track_topic,
             tracks=tracks,
         )
@@ -116,16 +119,17 @@ class AutonomyManager:
 
         self._log_info(f"constructed behavior library")
 
+
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         costmap_cbk_group = ReentrantCallbackGroup()
         self.costmap_sub = self._parent_node.create_subscription(
             OccupancyGrid,
-            local_costmap_topic,
+            subscription_prefix + local_costmap_topic,
             self._costmap_cbk,
             qos_profile,
             callback_group=costmap_cbk_group,

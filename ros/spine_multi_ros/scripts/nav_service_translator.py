@@ -12,7 +12,7 @@ from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from teaming_msgs.msg import GoalRequest, GoalStatus
 from std_msgs.msg import Int16
 from rcl_interfaces.msg import Parameter, ParameterValue
@@ -40,12 +40,12 @@ class NavServiceTranslator(Node):
     def __init__(self):
         super().__init__("nav_service_translator")
 
+        
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
-
         self._goal_dict: Dict[str, NavGoal] = {}
         self._strict_yaw = False
 
@@ -57,6 +57,7 @@ class NavServiceTranslator(Node):
                 (f"robot_name", ""),
                 ("frame_id", "map"),
                 ("parameter_server", "controller_server/set_parameters"),
+                ("subscription_prefix", "")
             ],
         )
 
@@ -79,6 +80,8 @@ class NavServiceTranslator(Node):
             self.get_parameter("parameter_server").get_parameter_value().string_value
         )
 
+        subscription_prefix = self.get_parameter("subscription_prefix").get_parameter_value().string_value
+
         client_group = ReentrantCallbackGroup()
         self._action_client = ActionClient(
             self,
@@ -90,7 +93,7 @@ class NavServiceTranslator(Node):
         sub_cbk_group = ReentrantCallbackGroup()
         self._nav_req_sub = self.create_subscription(
             GoalRequest,
-            "navigation_request",
+            subscription_prefix + "navigation_request",
             self._req_cbk,
             qos_profile,
             callback_group=sub_cbk_group,
@@ -98,7 +101,7 @@ class NavServiceTranslator(Node):
 
         self._ack_sub = self.create_subscription(
             Int16,
-            "navigation_ack",
+            subscription_prefix + "navigation_ack",
             self._ack_cbk,
             qos_profile,
             callback_group=sub_cbk_group,

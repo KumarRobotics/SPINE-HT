@@ -13,7 +13,7 @@ VALID_ACTIONS_MULTI_SUGGEST = [
     for name, obj in inspect.getmembers(planning_api, inspect.isfunction)
     if obj.__module__ == planning_api.__name__
 ]
-VALID_ACTIONS_MULTI = set(["goto", "map_region", "inspect", "extend_map" "explore_to"])
+VALID_ACTIONS_MULTI = set(["goto", "map_region", "inspect", "extend_map", "explore_to"])
 
 ValidPlanFeedback = namedtuple("ValidPlanFeedback", ["success", "message"])
 VALID_ACTIONS = set(

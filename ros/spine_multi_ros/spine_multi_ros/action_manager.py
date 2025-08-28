@@ -45,7 +45,7 @@ class ActionManager:
 
     def construct_behavior_library(self) -> Dict[str, Callable]:
         return {
-            "extend_map": self._explore_to,
+            "explore_to": self._explore_to,
             "goto": self._goto_region,
             "inspect": self._inspect_object_wrapper,
             "explore_region": lambda x: self._goto_region(x[0]),
@@ -111,12 +111,34 @@ class ActionManager:
     def _explore_to(self, goal_x: float, goal_y: float) -> bool:
         x = float(goal_x)
         y = float(goal_y)
+        target_loc = np.array([x, y])
+
+        nodes, locs = self._graph.get_region_nodes_and_locs()
+
+        self._log_info(f"locs: {locs} loc shapes: {locs.shape}")
+
+
+        for node, loc in zip(nodes, locs):
+            if np.linalg.norm(loc - target_loc) < 5:
+                self._prompt_former.update(freeform_updates=f"{node} is within 5 meters of your target. Use that instead of making a new node.")
+
+                return True
+
+
+
         success, frontiers = self._add_frontier(np.array([x, y]).reshape(1, 2))
 
         if not success:
+            self._log_info(f"Could not add frontier. Breaking.")
             return False
 
         assert len(frontiers) in (0, 1)
+
+        # self._try_add_edges(
+        #     node_id=frontiers[0].id,
+        #     coords=np.array(frontiers[0].location),
+        #     node_type="region",
+        # )
 
         if len(frontiers) == 1:
             return self._goto_region(frontiers[0].id)

@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from spine_multi.spine import GraphHandler
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
@@ -21,6 +21,7 @@ class TrackerClientComponenet:
         graph_viz: GraphVisualizerComponent,
         track_topic: Optional[str] = "tracks",
         tracks: Optional[Dict[int, Hypothesis]] = None,
+        subscription_prefix: str = ""
     ):
         self._parent_node = parent_node
         self._graph = graph
@@ -37,15 +38,15 @@ class TrackerClientComponenet:
         self.updated_tracks = set()
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         track_cbk_group = ReentrantCallbackGroup()
         self.track_sub = parent_node.create_subscription(
             Track,
-            track_topic,
+            subscription_prefix + track_topic,
             self._track_cbk,
             qos_profile,
             callback_group=track_cbk_group,

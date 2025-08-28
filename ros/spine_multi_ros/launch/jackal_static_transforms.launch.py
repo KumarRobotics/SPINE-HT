@@ -16,7 +16,12 @@ def generate_launch_description():
         "use_sim_time", default_value="false", description="Use simulation time"
     )
 
+    start_y_arg = DeclareLaunchArgument(
+        "start_y", default_value="0", description="Name for the robot"
+    )
+
     robot_map_frame = LaunchConfiguration("robot_map_frame")
+    start_y = LaunchConfiguration("start_y")
 
     # launch everything in a namespace
     namespaced_group = GroupAction(
@@ -28,7 +33,7 @@ def generate_launch_description():
                     "--x",
                     "0",
                     "--y",
-                    "0",
+                    start_y,
                     "--z",
                     "0",
                     "--yaw",
@@ -91,5 +96,5 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        [robot_map_frame_arg, use_sim_time_arg, namespaced_group]
+        [robot_map_frame_arg, start_y_arg, use_sim_time_arg, namespaced_group]
     )

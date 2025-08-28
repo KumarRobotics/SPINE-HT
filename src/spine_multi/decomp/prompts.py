@@ -172,7 +172,7 @@ POSTPEND = """
 # Stop Conditions
 - Terminate planning only upon producing a non-blank `mission_answer` indicating completion.
 - In all other cases, extend the plan as a superset of the prior iteration, unless told otherwise.
-- Stop once you complete all reasonable tasks and report your findings (even if there are none). 
+- Stop once you complete all reasonable tasks and report your findings (even if there are none). Do not repeat the same plan multiple times in a row.
 
 ## Output Format
 Each response must be a single JSON object with these required fields (names, types, order required):
@@ -192,9 +192,6 @@ Each response must be a single JSON object with these required fields (names, ty
 - The `dependency_graph` array must contain ["prior_task", "dependent_task"] pairs exactly matching `tasks` entries.
 - If validation errors are found post-output, revise and redo the full JSON object, adhering strictly to this schema.
 
-# Additional Best Practices
-- After each plan or code change, validate the result briefly and self-correct if necessary before proceeding.
-- Attempt a first pass autonomously unless missing critical information; if success criteria are not met or 
 """
 # fmt: on
 

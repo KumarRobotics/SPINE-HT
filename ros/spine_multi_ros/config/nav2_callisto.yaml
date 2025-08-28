@@ -197,8 +197,10 @@ global_costmap:
       resolution: 0.1
 
       rolling_window: true
-      width: 100          # 20m at 0.06 resolution
-      height: 100         # 20m at 0.06 resolution  
+      width: 50          # 20m at 0.06 resolution
+      height: 50         # 20m at 0.06 resolution  
+      origin_x: 0.0     # Center the map
+      origin_y: 0.0     # Center the map
 
       track_unknown_space: true
       always_send_full_costmap: true

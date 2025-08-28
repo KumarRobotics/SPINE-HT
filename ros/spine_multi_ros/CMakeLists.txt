@@ -18,15 +18,15 @@ find_package(tf2_ros REQUIRED)
 include_directories(include)
 
 # Declare your C++ executable(s)
-add_executable(odom_tf_broadcaster src/odom_tf_broadcaster.cpp)
+# add_executable(odom_tf_broadcaster src/odom_tf_broadcaster.cpp)
 
 # Link dependencies
-ament_target_dependencies(odom_tf_broadcaster
-rclcpp
-nav_msgs
-geometry_msgs
-tf2_ros
-)
+# ament_target_dependencies(odom_tf_broadcaster
+# rclcpp
+# nav_msgs
+# geometry_msgs
+# tf2_ros
+# )
 
 install(PROGRAMS
   scripts/twist_converter.py
@@ -39,9 +39,9 @@ install(PROGRAMS
 )
 
 # Install the executable
-install(TARGETS odom_tf_broadcaster
-  DESTINATION lib/${PROJECT_NAME}
-)
+# install(TARGETS odom_tf_broadcaster
+#   DESTINATION lib/${PROJECT_NAME}
+# )
 
 # Install launch files, configs, and other resources if you want
 install(DIRECTORY launch config rviz

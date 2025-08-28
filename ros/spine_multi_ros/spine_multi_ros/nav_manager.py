@@ -15,7 +15,7 @@ from rcl_interfaces.srv import SetParameters
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import GoalRequest, GoalStatus
 
@@ -43,6 +43,7 @@ class NavigationComponentTopic(NavigationComponent):
         navigation_request: str = "navigation_request",
         navigation_status: str = "navigation_status",
         navigation_ack: str = "navigation_ack",
+        subscription_prefix: str = ""
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
@@ -54,9 +55,9 @@ class NavigationComponentTopic(NavigationComponent):
         self._logged_goal = False
 
         qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            # history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         self._goal_req_pub = self._parent_node.create_publisher(
@@ -68,7 +69,7 @@ class NavigationComponentTopic(NavigationComponent):
         sub_cbk_group = ReentrantCallbackGroup()
         self._goal_status_sub = self._parent_node.create_subscription(
             GoalStatus,
-            navigation_status,
+            subscription_prefix + navigation_status,
             self._goal_status_cbk,
             qos_profile,
             callback_group=sub_cbk_group,
@@ -134,11 +135,11 @@ class NavigationComponentTopic(NavigationComponent):
         )
 
         while not self._goal_msg_recv:
-            if not self._logged_goal:
-                self._log_info(
-                    f"sending goal msg: {self._current_goal_idx} of {x} {y} "
-                )
-                self._logged_goal = True
+            # if not self._logged_goal:
+            self._log_info(
+                f"[{self._robot_name}] sending goal msg: {self._current_goal_idx} of {x} {y} "
+            )
+                # self._logged_goal = True
 
             self._goal_req_pub.publish(goal_msg)
             time.sleep(5)

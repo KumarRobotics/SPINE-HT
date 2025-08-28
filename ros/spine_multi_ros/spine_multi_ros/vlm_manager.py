@@ -6,7 +6,7 @@ from typing import Dict, Tuple
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import VLMRequest, VLMResponse
 from teaming_msgs.srv import Query
@@ -41,6 +41,7 @@ class VLMManagerTopic(VLMManager):
         vlm_request: str = "vlm_request",
         vlm_response: str = "vlm_response",
         vlm_ack: str = "vlm_ack",
+        subscription_prefix: str = ""
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
@@ -50,8 +51,8 @@ class VLMManagerTopic(VLMManager):
 
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
         self._goal_req_pub = self._parent_node.create_publisher(
@@ -63,7 +64,7 @@ class VLMManagerTopic(VLMManager):
         sub_cbk_group = ReentrantCallbackGroup()
         self._response_sub = self._parent_node.create_subscription(
             VLMResponse,
-            vlm_response,
+            subscription_prefix + vlm_response,
             self._req_status_ckb,
             qos_profile,
             callback_group=sub_cbk_group,

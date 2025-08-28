@@ -3,40 +3,42 @@ spine_multi_node:
     namespace: ""
     planning_limit_idx: 5
     team_specification: "You have two clearpath jackal robots"
-    init_graph:  /home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/indoor_perch.json
+    init_graph:  /home/zac/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json
     init_location: ground_1
     robots:
-      robot2:
-        name: jackal_1
-        namespace: /j100_0002
-        init_location: ground_1
-        nav_target_frame: map
-        graph_viz_topic: /j100_0002/map
-        track_topic: /j100_0002/grounding_dino_node/tracks
-        local_costmap_topic: /j100_0002/local_costmap/costmap
-        vlm_request: /j100_0002/vlm_request
-        vlm_response: /j100_0002/vlm_response
-        vlm_ack: /j100_0002/vlm_ack
-        navigation_request: /j100_0002/navigation_request
-        navigation_status: /j100_0002/navigation_status
-        navigation_ack: /j100_0002/navigation_ack
-        label_request: /j100_0002/label_request 
-        label_response: /j100_0002/label_response 
-        label_ack: /j100_0002/label_ack
       robot1:
-        name: jackal_2
-        namespace: /j100_0003
+        name: jackal_1
+        namespace: /callisto
+        subscription_prefix: ""
         init_location: ground_1
         nav_target_frame: map
-        graph_viz_topic: map
-        track_topic: /j100_0003/grounding_dino_node/tracks
-        local_costmap_topic: /j100_0003/local_costmap/costmap
-        vlm_request: /j100_0003/vlm_request
-        vlm_response: /j100_0003/vlm_response
-        vlm_ack: /j100_0003/vlm_ack
-        navigation_request: /j100_0003/navigation_request
-        navigation_status: /j100_0003/navigation_status
-        navigation_ack: /j100_0003/navigation_ack
-        label_request: /j100_0003/label_request 
-        label_response: /j100_0003/label_response 
-        label_ack: /j100_0003/label_ack
+        graph_viz_topic: /callisto/graph_viz
+        track_topic: /callisto/grounding_dino_node/tracks
+        local_costmap_topic: /callisto/local_costmap/costmap
+        vlm_request: /to_callisto/vlm_request
+        vlm_response: /callisto/vlm_response
+        vlm_ack: /to_callisto/vlm_ack
+        navigation_request: /to_callisto/navigation_request
+        navigation_status: /callisto/navigation_status
+        navigation_ack: /to_callisto/navigation_ack
+        label_request: /to_callisto/label_request 
+        label_response: /callisto/label_response 
+        label_ack: /to_callisto/label_ack
+      robot2:
+        name: jackal_2
+        namespace: /io
+        subscription_prefix: ""
+        init_location: ground_1
+        nav_target_frame: map
+        graph_viz_topic: /io/graph_viz
+        track_topic: /io/grounding_dino_node/tracks
+        local_costmap_topic: /io/local_costmap/costmap
+        vlm_request: /to_io/vlm_request
+        vlm_response: /io/vlm_response
+        vlm_ack: /to_io/vlm_ack
+        navigation_request: /to_io/navigation_request
+        navigation_status: /io/navigation_status
+        navigation_ack: /to_io/navigation_ack
+        label_request: /to_io/label_request 
+        label_response: /io/label_response 
+        label_ack: /to_io/label_ack

@@ -33,6 +33,8 @@ from teaming_msgs.srv import Mission
 class RobotConfig:
     name: str
     namespace: str
+    type: str
+    subscription_prefix: str
     init_location: str
     nav_target_frame: str
     graph_viz_topic: str
@@ -66,18 +68,18 @@ class SPINEMultiNode(Node):
         )
 
         robots = [
-            RobotDescription(
-                id="jackal_1",
-                type="jackal",
-                capabilities=JACKAL_CAPABILITIES,
-                location=np.array([]),
-            ),
-            RobotDescription(
-                id="jackal_2",
-                type="jackal",
-                capabilities=JACKAL_CAPABILITIES,
-                location=np.array([]),
-            ),
+            # RobotDescription(
+            #     id="jackal_1",
+            #     type="jackal",
+            #     capabilities=JACKAL_CAPABILITIES,
+            #     location=np.array([]),
+            # ),
+            # RobotDescription(
+            #     id="jackal_2",
+            #     type="jackal",
+            #     capabilities=JACKAL_CAPABILITIES,
+            #     location=np.array([]),
+            # ),
             # RobotDescription(id="husky_1", type="husky", capabilities=HUSKY_CAPABILITIES),
             # RobotDescription(
             #     id="uav_1", type="falcon_4", capabilities=FALCON_4_CAPABILITIES
@@ -93,6 +95,20 @@ class SPINEMultiNode(Node):
         self._planning_limit = (
             self.get_parameter("planning_limit_idx").get_parameter_value().integer_value
         )
+
+        param_dict = self.get_parameters_by_prefix("robots")
+        self._robot_configs = self.parse_params(param_dict)
+
+
+        for robot_config in self._robot_configs:
+            robots.append(
+                RobotDescription(
+                    id=robot_config.name,
+                    type="jackal",
+                    capabilities=JACKAL_CAPABILITIES,
+                    location=np.array([])
+                )
+            )
 
         self._graph = GraphHandler(graph_path=init_graph)
         self._tracks = {}
@@ -114,8 +130,7 @@ class SPINEMultiNode(Node):
         self._planning_limit = 5
         self._class_llm = ClassLLM()
 
-        param_dict = self.get_parameters_by_prefix("robots")
-        self._robot_configs = self.parse_params(param_dict)
+        
         self._robot_autonomy_managers = self._init_autonomy_managers(
             self._robot_configs
         )
@@ -165,6 +180,7 @@ class SPINEMultiNode(Node):
             managers[config.name] = AutonomyManager(
                 parent_node=self,
                 robot_name=config.name,
+                subscription_prefix=config.subscription_prefix,
                 init_graph=self._graph,
                 init_node=config.init_location,
                 nav_target_frame=config.nav_target_frame,
