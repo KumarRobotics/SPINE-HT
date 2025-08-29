@@ -72,6 +72,8 @@ def generate_launch_description():
                 [namespace_arg, "/local_plan"],
                 [namespace_arg, "/local_costmap/published_footprint"],
                 [namespace_arg, "/graph_viz"],
+                [namespace_arg, "/behavior_request_ack"],
+                [namespace_arg, "/behavior_result"],
                 "/tf",
                 "/tf_static",
                 "-o",
