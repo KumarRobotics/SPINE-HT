@@ -63,22 +63,6 @@ class SPINEMultiNode(Node):
         )
 
         robots = [
-            # RobotDescription(
-            #     id="jackal_1",
-            #     type="jackal",
-            #     capabilities=JACKAL_CAPABILITIES,
-            #     location=np.array([]),
-            # ),
-            # RobotDescription(
-            #     id="jackal_2",
-            #     type="jackal",
-            #     capabilities=JACKAL_CAPABILITIES,
-            #     location=np.array([]),
-            # ),
-            # RobotDescription(id="husky_1", type="husky", capabilities=HUSKY_CAPABILITIES),
-            # RobotDescription(
-            #     id="uav_1", type="falcon_4", capabilities=FALCON_4_CAPABILITIES
-            # )
         ]
         team_specification = (
             self.get_parameter("team_specification").get_parameter_value().string_value
@@ -333,8 +317,6 @@ class SPINEMultiNode(Node):
         self, robot: str, task: Tuple[str, List[Any]], planning_idx: int
     ) -> BehaviorResult:
         behavior, args = task
-        self.get_logger().info(f"in call behavior async: {planning_idx}, {robot}, {task}")
-
         self.get_logger().info(
             f"[spine node] planning iteration {planning_idx}: commanding robot: {robot}: {task} with type: {type(task[1])}"
         )
