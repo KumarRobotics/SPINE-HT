@@ -37,16 +37,17 @@ controller_server:
       stateful: true
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 5.0
-      yaw_goal_tolerance: 3.1
+      yaw_goal_tolerance: 6.3
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.05
-      batch_size: 2000
+      batch_size: 2500
       ax_max: 15.0
       ax_min: -13.0
       ay_max: 10.0
       az_max: 10.5
+      az_min: -10.5
       vx_std: 0.8
       vy_std: 0.8
       wz_std: 0.8
@@ -54,6 +55,7 @@ controller_server:
       vx_min: -0.35
       vy_max: 9.0
       wz_max: 9.9
+      wz_min: -9.9
       # ax_max: 3.0
       # ax_min: -3.0
       # ay_max: 3.0
@@ -126,9 +128,9 @@ controller_server:
         offset_from_furthest: 5
         threshold_to_consider: 1.4
       PathAngleCritic:
-        enabled: true
+        enabled: false ###true
         cost_power: 1
-        cost_weight: 2.0
+        cost_weight: 0.0 #2.0
         offset_from_furthest: 4
         threshold_to_consider: 0.5
         max_angle_to_furthest: 1.0

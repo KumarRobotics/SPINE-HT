@@ -230,7 +230,7 @@ class JackalAutonomyManager(Node):
             result_msg = self._build_result_msg(idx=msg.idx, data=outcomes)
             while msg.idx not in self._acked_results:
                 self._result_pub.publish(result_msg)
-                time.sleep(5)
+                time.sleep(15)
                 self._log_info(f"pub response: {result_msg.result}")
 
 
@@ -353,6 +353,7 @@ class JackalNavigationComponent:
         self._goal_tol = goal_tol
 
         self._strict_yaw = False
+        self._log_info_idx = 0
 
     def _log_info(self, msg: str) -> None:
         self._parent_node.get_logger().info(f"[navigation component action] {msg}")
@@ -462,6 +463,13 @@ class JackalNavigationComponent:
             f"Current position: ({current_pose.position.x:.2f}, {current_pose.position.y:.2f})"
         )
         # )
+
+        if self._log_info_idx % 1000 == 0:
+            self._log_info(f"{status}")
+
+        self._log_info_idx += 1
+        if self._log_info_idx > 1e6:
+            self._log_info_idx = 0
 
         status_msg = String()
         status_msg.data = ascii(status)
