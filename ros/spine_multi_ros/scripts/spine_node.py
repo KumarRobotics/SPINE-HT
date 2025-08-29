@@ -24,7 +24,7 @@ from spine_multi_ros.nav_manager import (
     NavigationComponentAction,
     NavigationComponentTopic,
 )
-from spine_multi_ros.tracker_client import TrackerClientComponenet
+from spine_multi_ros.tracker_client import TrackerClientComponent
 from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
 
 from teaming_msgs.srv import Mission, Query
@@ -72,7 +72,7 @@ class SPINE_node(Node):
         )
         self._graph_viz.set_graph(self._graph)
 
-        self._tracker_componenet = TrackerClientComponenet(
+        self._tracker_component = TrackerClientComponent(
             self, self._graph, self._prompt_former, self._graph_viz
         )
 
@@ -96,7 +96,7 @@ class SPINE_node(Node):
             graph=self._graph,
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
-            nav_componenet=self._nav_component,
+            nav_component=self._nav_component,
             vlm_client=self._vlm_manager, #@ vlm_client,
             frontier_extractor=self._frontier_extractor,
         )
@@ -212,7 +212,7 @@ class SPINE_node(Node):
                 break
 
             # flush track queue from planning iteration
-            self._tracker_componenet.parse_track_updates()
+            self._tracker_component.parse_track_updates()
             prompt = self._prompt_former.form_updates()
             self.get_logger().info(f"[spine node] finished planning iteration")
 

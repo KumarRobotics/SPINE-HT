@@ -256,7 +256,7 @@ class SPINEMultiNode(Node):
             # and send to LLM
             updates = ""
             for robot, autonomy_manager in self._robot_autonomy_managers.items():
-                autonomy_manager._tracker_componenet.parse_track_updates()
+                autonomy_manager._tracker_component.parse_track_updates()
                 robot_feedback = autonomy_manager._prompt_former.form_updates()
                 updates += f"{robot} updates: {robot_feedback}\n"
 

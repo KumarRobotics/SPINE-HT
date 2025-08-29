@@ -121,7 +121,7 @@ class AutonomyManager:
             graph=self._graph,
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
-            nav_componenet=self._nav_component,
+            nav_component=self._nav_component,
             vlm_client=self._vlm_manager,
             frontier_extractor=self._frontier_extractor,
             logger=self._logger,

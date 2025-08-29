@@ -24,7 +24,7 @@ class ActionManager:
         graph: GraphHandler | MultiRobotGraphHandler,
         graph_viz: GraphVisualizerComponent,
         prompt_former: UpdatePromptFormer,
-        nav_componenet: NavigationComponentTopic,
+        nav_component: NavigationComponentTopic,
         vlm_client: VLMManagerTopic,
         frontier_extractor: FrontierExtractor,
         logger: Logger,
@@ -35,7 +35,7 @@ class ActionManager:
         self._frontier_extractor = frontier_extractor
         self._graph_viz = graph_viz
         self._prompt_former = prompt_former
-        self._nav_component = nav_componenet
+        self._nav_component = nav_component
         self._vlm_client = vlm_client
         self._logger = logger
 
