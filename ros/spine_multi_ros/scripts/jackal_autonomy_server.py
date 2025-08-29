@@ -406,7 +406,7 @@ class JackalNavigationComponent:
         goal_msg.pose.pose.orientation.w = math.cos(yaw / 2.0)
 
         if check_yaw and not self._strict_yaw:
-            self.set_yaw_tolerance(float(0.2))
+            self.set_yaw_tolerance(float(1))
         elif not check_yaw and self._strict_yaw:
             self.set_yaw_tolerance(float(3.1))
 
