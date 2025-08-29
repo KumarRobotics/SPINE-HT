@@ -36,7 +36,7 @@ controller_server:
     general_goal_checker:
       stateful: true
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 3.0
+      xy_goal_tolerance: 5.0
       yaw_goal_tolerance: 3.1
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
