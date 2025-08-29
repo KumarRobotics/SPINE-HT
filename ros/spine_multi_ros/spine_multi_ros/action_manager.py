@@ -13,7 +13,7 @@ from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
 
 from spine_multi_ros.nav_manager import NavigationComponentTopic
-from spine_multi_ros.vlm_manager import VLMManager
+from spine_multi_ros.vlm_manager import VLMManagerTopic
 
 
 class ActionManager:
@@ -25,7 +25,7 @@ class ActionManager:
         graph_viz: GraphVisualizerComponent,
         prompt_former: UpdatePromptFormer,
         nav_componenet: NavigationComponentTopic,
-        vlm_client: VLMManager,
+        vlm_client: VLMManagerTopic,
         frontier_extractor: FrontierExtractor,
         logger: Logger,
     ):
@@ -35,7 +35,7 @@ class ActionManager:
         self._frontier_extractor = frontier_extractor
         self._graph_viz = graph_viz
         self._prompt_former = prompt_former
-        self._nav_componenet = nav_componenet
+        self._nav_component = nav_componenet
         self._vlm_client = vlm_client
         self._logger = logger
 
@@ -117,14 +117,11 @@ class ActionManager:
 
         self._log_info(f"locs: {locs} loc shapes: {locs.shape}")
 
-
         for node, loc in zip(nodes, locs):
             if np.linalg.norm(loc - target_loc) < 5:
                 self._prompt_former.update(freeform_updates=f"{node} is within 5 meters of your target. Use that instead of making a new node.")
 
                 return True
-
-
 
         success, frontiers = self._add_frontier(np.array([x, y]).reshape(1, 2))
 
@@ -175,11 +172,7 @@ class ActionManager:
             )
             return False
 
-        self._log_info(f"querying vlm")
-
         success, response = self._vlm_client._query_vlm(vlm_query)
-
-        self._log_info(f"done vlm query: {response}")
 
         if success:
             self._prompt_former.update(
@@ -264,7 +257,7 @@ class ActionManager:
                 continue
 
             coords = self._graph.get_node_coord(node)
-            response = self._nav_componenet.navigate_and_wait(
+            response = self._nav_component.navigate_and_wait(
                 x=coords[0], y=coords[1], yaw=0
             )
 
@@ -309,7 +302,7 @@ class ActionManager:
 
         success_region = self._graph_nav_to_region(nearest_region)
 
-        response = self._nav_componenet.navigate_and_wait(
+        response = self._nav_component.navigate_and_wait(
             x=region_coords[0], y=region_coords[1], yaw=angle, check_yaw=True
         )
 

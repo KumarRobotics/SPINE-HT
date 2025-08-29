@@ -12,7 +12,7 @@ from teaming_msgs.msg import Track
 from vision_ros2.tracker import Hypothesis, from_track_msg
 
 
-class TrackerClientComponenet:
+class TrackerClientComponent:
     def __init__(
         self,
         parent_node: Node,

@@ -9,7 +9,7 @@ from nav_msgs.msg import OccupancyGrid
 from rcl_interfaces.srv import SetParameters
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation
 from spine_multi.multi_robot_graph import MultiRobotGraphHandler
 from spine_multi.spine import GraphHandler
@@ -19,12 +19,13 @@ from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
 from teaming_msgs.srv import Query
 
 from spine_multi_ros.action_manager import ActionManager
+from spine_multi_ros.msg_handler import MessageHandler
 from spine_multi_ros.nav_manager import (
     NavigationComponentAction,
     NavigationComponentTopic,
 )
 from spine_multi_ros.set_label_manager import LabelManagerTopic
-from spine_multi_ros.tracker_client import TrackerClientComponenet
+from spine_multi_ros.tracker_client import TrackerClientComponent
 from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
 
 
@@ -45,12 +46,12 @@ class AutonomyManager:
         graph_viz_topic: str,
         track_topic: str,
         local_costmap_topic: str,
-        vlm_params: dict,
-        navigation_params: dict,
-        label_params: dict,
         tracks: dict,
         logger: Logger,
-        use_actions: Optional[bool] = False,
+        behavior_request_pub: str,
+        behavior_request_ack_sub: str,
+        behavior_result_sub: str,
+        behavior_result_ack_pub: str,
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
@@ -61,23 +62,38 @@ class AutonomyManager:
         )
         self._frontier_extractor = FrontierExtractor(self._graph)
         self._prompt_former = UpdatePromptFormer()
-        self._label_manager = LabelManagerTopic(
-            parent_node=parent_node, robot_name=robot_name, subscription_prefix=subscription_prefix, **label_params
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
         )
 
-        # TODO need better handling here
-        if use_actions:
-            self._nav_component = NavigationComponentAction(
-                parent_node=parent_node, frame_id=nav_target_frame
-            )
-            self._vlm_manager = VLMManagerAction(parent_node=parent_node, **vlm_params)
-        else:
-            self._nav_component = NavigationComponentTopic(
-                parent_node=parent_node, robot_name=robot_name, subscription_prefix=subscription_prefix, **navigation_params
-            )
-            self._vlm_manager = VLMManagerTopic(
-                parent_node=parent_node, robot_name=self._robot_name, subscription_prefix=subscription_prefix, **vlm_params
-            )
+        self._msg_handler = MessageHandler(
+            parent=self._parent_node,
+            robot_name=self._robot_name,
+            behavior_request=behavior_request_pub,
+            behavior_request_ack_sub=behavior_request_ack_sub,
+            behavior_result_sub=behavior_result_sub,
+            behavior_result_ack_pub=behavior_result_ack_pub,
+            qos_profile=qos_profile,
+        )
+
+        self._label_manager = LabelManagerTopic(
+            parent_node=parent_node,
+            robot_name=robot_name,
+            msg_handler=self._msg_handler,
+        )
+
+        self._nav_component = NavigationComponentTopic(
+            parent_node=parent_node,
+            robot_name=robot_name,
+            msg_handler=self._msg_handler,
+        )
+        self._vlm_manager = VLMManagerTopic(
+            parent_node=parent_node,
+            robot_name=self._robot_name,
+            msg_handler=self._msg_handler
+        )
 
         self._graph_viz = GraphVisualizerComponent(
             parent_node=parent_node,
@@ -88,7 +104,7 @@ class AutonomyManager:
         )
         self._graph_viz.set_graph(self._graph.get_graph())
 
-        self._tracker_componenet = TrackerClientComponenet(
+        self._tracker_component = TrackerClientComponent(
             parent_node,
             self._graph,
             self._prompt_former,
@@ -98,9 +114,6 @@ class AutonomyManager:
             tracks=tracks,
         )
 
-        self._log_info(f"tracker cbk init")
-
-        self._log_info(f"vlm client init")
 
         self._action_manager = ActionManager(
             parent_node=parent_node,
@@ -119,13 +132,6 @@ class AutonomyManager:
 
         self._log_info(f"constructed behavior library")
 
-
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.VOLATILE,
-            history=HistoryPolicy.KEEP_ALL,
-        )
-
         costmap_cbk_group = ReentrantCallbackGroup()
         self.costmap_sub = self._parent_node.create_subscription(
             OccupancyGrid,
@@ -134,7 +140,6 @@ class AutonomyManager:
             qos_profile,
             callback_group=costmap_cbk_group,
         )
-
         self._log_info(f"initialized costmap cbk")
 
         self._log_info(f"initialized")

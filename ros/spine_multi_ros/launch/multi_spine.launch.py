@@ -15,7 +15,7 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 def generate_launch_description():
     declare_run_bridge = DeclareLaunchArgument(
-        "use_bridge", default_value="True", description="Run ros bridge"
+        "use_bridge", default_value="False", description="Run ros bridge"
     )
     declare_run_mocha = DeclareLaunchArgument(
         "use_mocha", default_value="True", description="Run mocha"

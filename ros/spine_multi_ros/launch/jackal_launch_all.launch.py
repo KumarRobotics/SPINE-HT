@@ -139,27 +139,33 @@ def generate_launch_description():
                     ("auto_mode/cmd_vel", [robot_name, "/auto_mode/cmd_vel"])
                 ]
             ),
+            # Node(
+            #     package="spine_multi_ros",
+            #     executable="nav_service_translator.py",
+            #     name="nav_service_translator",
+            #     parameters=[
+            #         {"robot_name": namespace},
+            #         {"subscription_prefix": subscription_prefix}
+            #     ],
+            # ),
+            # Node(
+            #     package="spine_multi_ros",
+            #     executable="vlm_service_translator.py",
+            #     name="vlm_service_translator",
+            #     parameters=[{"subscription_prefix": subscription_prefix}]
+            # ),
+            # Node(
+            #     package="spine_multi_ros",
+            #     executable="label_service_translator.py",
+            #     name="label_service_translator",
+            #     parameters=[{"subscription_prefix": subscription_prefix}]
+            # ),
             Node(
                 package="spine_multi_ros",
-                executable="nav_service_translator.py",
-                name="nav_service_translator",
-                parameters=[
-                    {"robot_name": namespace},
-                    {"subscription_prefix": subscription_prefix}
-                ],
-            ),
-            Node(
-                package="spine_multi_ros",
-                executable="vlm_service_translator.py",
-                name="vlm_service_translator",
+                executable="jackal_autonomy_server.py",
+                name="jackal_autonomy_server",
                 parameters=[{"subscription_prefix": subscription_prefix}]
-            ),
-            Node(
-                package="spine_multi_ros",
-                executable="label_service_translator.py",
-                name="label_service_translator",
-                parameters=[{"subscription_prefix": subscription_prefix}]
-            ),
+            )
         ],
     )
 

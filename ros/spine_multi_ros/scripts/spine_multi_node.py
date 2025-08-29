@@ -39,16 +39,11 @@ class RobotConfig:
     nav_target_frame: str
     graph_viz_topic: str
     track_topic: str
-    vlm_request: str
-    vlm_response: str
-    vlm_ack: str
-    navigation_request: str
-    navigation_status: str
-    navigation_ack: str
     local_costmap_topic: str
-    label_request: str
-    label_response: str
-    label_ack: str
+    behavior_request_pub: str 
+    behavior_request_ack_sub: str 
+    behavior_result_sub: str 
+    behavior_result_ack_pub: str
 
 
 @dataclass
@@ -99,14 +94,13 @@ class SPINEMultiNode(Node):
         param_dict = self.get_parameters_by_prefix("robots")
         self._robot_configs = self.parse_params(param_dict)
 
-
         for robot_config in self._robot_configs:
             robots.append(
                 RobotDescription(
                     id=robot_config.name,
                     type="jackal",
                     capabilities=JACKAL_CAPABILITIES,
-                    location=np.array([])
+                    location=np.array([]),
                 )
             )
 
@@ -130,7 +124,6 @@ class SPINEMultiNode(Node):
         self._planning_limit = 5
         self._class_llm = ClassLLM()
 
-        
         self._robot_autonomy_managers = self._init_autonomy_managers(
             self._robot_configs
         )
@@ -189,21 +182,10 @@ class SPINEMultiNode(Node):
                 local_costmap_topic=config.local_costmap_topic,
                 tracks=self._tracks,
                 logger=self._logger,
-                navigation_params={
-                    "navigation_request": config.navigation_request,
-                    "navigation_status": config.navigation_status,
-                    "navigation_ack": config.navigation_ack,
-                },
-                vlm_params={
-                    "vlm_request": config.vlm_request,
-                    "vlm_response": config.vlm_response,
-                    "vlm_ack": config.vlm_ack,
-                },
-                label_params={
-                    "label_request": config.label_request,
-                    "label_response": config.label_response,
-                    "label_ack": config.label_ack,
-                },
+                behavior_request_pub=config.behavior_request_pub,
+                behavior_request_ack_sub=config.behavior_request_ack_sub,
+                behavior_result_sub=config.behavior_result_sub,
+                behavior_result_ack_pub=config.behavior_result_ack_pub,
             )
 
         return managers
@@ -243,7 +225,7 @@ class SPINEMultiNode(Node):
             if allocation_result.mission_is_done:
                 break
 
-            assignments = allocation_result.translated_assigmnets
+            assignments = allocation_result.translated_assigments
             assignment_str = ""
 
             assignment_str += ",".join(
@@ -326,13 +308,15 @@ class SPINEMultiNode(Node):
                 result = future.result()
                 results.append(result)
 
+                self._log_info(f"[task robots async] result: {result}")
+
                 if result.success:
                     self.get_logger().info(
                         f"Robot {robot} behavior completed successfully"
                     )
                 else:
                     self.get_logger().error(
-                        f"Robot {robot} behavior failed: {result['error']}"
+                        f"Robot {robot} behavior failed: {result.error  }"
                     )
 
             except Exception as ex:
@@ -349,17 +333,24 @@ class SPINEMultiNode(Node):
         self, robot: str, task: Tuple[str, List[Any]], planning_idx: int
     ) -> BehaviorResult:
         behavior, args = task
+        self.get_logger().info(f"in call behavior async: {planning_idx}, {robot}, {task}")
+
         self.get_logger().info(
             f"[spine node] planning iteration {planning_idx}: commanding robot: {robot}: {task} with type: {type(task[1])}"
         )
+
         behavior, args = task
+
+        success = "call_behavior not evaluated"
+
         try:
             self.get_logger().info(f"args: {args}")
-
             success = self._robot_autonomy_managers[robot].call_behavior(behavior, args)
             return BehaviorResult(robot, behavior, success, None)
 
         except Exception as ex:
+            self._log_info(f"got error with behavior: {robot} {behavior} {success}")
+ 
             self.get_logger().info(f"[spine node] Error in {robot} {behavior}: {ex}")
             return BehaviorResult(robot, behavior, False, str(ex))
 

@@ -7,6 +7,7 @@ import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy, DurabilityPolicy
+from spine_multi_ros.msg_handler import MessageHandler
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import VLMRequest, VLMResponse
 from teaming_msgs.srv import Query
@@ -38,90 +39,30 @@ class VLMManagerTopic(VLMManager):
         self,
         parent_node: Node,
         robot_name: str,
-        vlm_request: str = "vlm_request",
-        vlm_response: str = "vlm_response",
-        vlm_ack: str = "vlm_ack",
-        subscription_prefix: str = ""
+        msg_handler: MessageHandler,
     ):
         self._parent_node = parent_node
         self._robot_name = robot_name
-
-        self._current_query_idx = -1
-        self._query_dict: Dict[int, VLMResp] = {}
-
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.VOLATILE,
-            history=HistoryPolicy.KEEP_ALL,
-        )
-
-        self._goal_req_pub = self._parent_node.create_publisher(
-            VLMRequest,
-            vlm_request,
-            qos_profile,
-        )
-
-        sub_cbk_group = ReentrantCallbackGroup()
-        self._response_sub = self._parent_node.create_subscription(
-            VLMResponse,
-            subscription_prefix + vlm_response,
-            self._req_status_ckb,
-            qos_profile,
-            callback_group=sub_cbk_group,
-        )
-
-        self._ack_pub = self._parent_node.create_publisher(Int16, vlm_ack, qos_profile)
+        self._msg_handler = msg_handler
 
         self.open_scene_prompt = (
             "You are a robot. Describe where you are so you can plan. "
             "Provide your answer as a noun with a short description. For example: empty sidewalk, road, park with trees and benches, empty parking lot, patio."
         )
 
-    def _req_status_ckb(self, msg: VLMResponse) -> None:
-        if msg.idx in self._query_dict:
-            self._query_dict[msg.idx].answer = msg.answer.data
-            self._query_dict[msg.idx].ack = True
-
-            ack_msg = Int16()
-            ack_msg.data = msg.idx
-            self._ack_pub.publish(ack_msg)
-
-            self._parent_node.get_logger().info(
-                f"[vlm manager topic] [{self._robot_name}] sent ack for idx: {msg.idx}"
-            )
+    def _log_info(self, msg):
+        self._parent_node.get_logger().info(f"[vlm manager] {msg}")
 
     def describe_scene(self) -> Tuple[bool, str]:
         return self._query_vlm(self.open_scene_prompt)
 
     def _query_vlm(self, query: str) -> Tuple[bool, str]:
-        self._current_query_idx += 1
 
-        req_msg = VLMRequest()
+        query_msg = self._msg_handler.get_vlm_query_msg(query=query)
 
-        string_msg = String()
-        string_msg.data = query
-        req_msg.query = string_msg
-        req_msg.idx = self._current_query_idx
+        result = self._msg_handler.send_and_wait(query_msg)
 
-        self._query_dict[self._current_query_idx] = VLMResp(
-            idx=self._current_query_idx, ack=False, answer=""
-        )
-
-        self._parent_node.get_logger().info(
-            f"[vlm manager topic] [{self._robot_name}] sending idx: {self._current_query_idx} for query: {query}"
-        )
-
-        while not self._query_dict[self._current_query_idx].ack:
-            self._goal_req_pub.publish(req_msg)
-            time.sleep(5)
-            self._parent_node.get_logger().info(
-                f"[vlm manager topic] [{self._robot_name}] waiting for idx: {self._current_query_idx} for query: {query}"
-            )
-
-        answer = self._query_dict[self._current_query_idx].answer
-        self._parent_node.get_logger().info(
-            f"[vlm manager topic] [{self._robot_name}] got answer for idx {self._current_query_idx}: {answer}"
-        )
+        answer = result[0]['answer'][0]
 
         return True, answer
 

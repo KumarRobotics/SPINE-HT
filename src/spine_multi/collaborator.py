@@ -52,7 +52,7 @@ class AllocationResult:
 
     assigments: Tuple[str, str]
 
-    translated_assigmnets: Tuple[str, Tuple[str, List[str]]]
+    translated_assigments: Tuple[str, Tuple[str, List[str]]]
 
     mission_is_done: bool
     mission_answer: str
@@ -202,7 +202,7 @@ class Collaborator:
             mission_traces=traces,
             assignment_set=assigment_tasks,
             assigments=assignments,
-            translated_assigmnets=translated_assignments,
+            translated_assigments=translated_assignments,
             mission_is_done=mission_is_done,
             mission_answer="",
         )
@@ -219,7 +219,7 @@ class Collaborator:
             mission_traces=[[]],
             assignment_set=[],
             assigments=[],
-            translated_assigmnets=[],
+            translated_assigments=[],
             mission_is_done=True,
             mission_answer=answer,
         )
@@ -239,7 +239,7 @@ class Collaborator:
         log += "\n"
         log += f"assignments:\n\t{result.assigments}\n\n"
         log += f"all assigned tasks\n\t{break_long_str(str(self._allocator._assigned_tasks))}\n\n"
-        log += f"translated assignments:\n\t{result.translated_assigmnets}\n\n"
+        log += f"translated assignments:\n\t{result.translated_assigments}\n\n"
         log += f"mission complete:\n\t{result.mission_is_done}\n\n"
         return log
 

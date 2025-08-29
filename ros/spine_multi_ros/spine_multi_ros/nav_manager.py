@@ -17,7 +17,10 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 from std_msgs.msg import Int16, String
-from teaming_msgs.msg import GoalRequest, GoalStatus
+from teaming_msgs.msg import GoalRequest, GoalStatus, BehaviorRequest
+
+from spine_multi.parsing import ListDictParser
+from spine_multi_ros.msg_handler import MessageHandler
 
 
 class NavigationComponent(ABC):
@@ -40,78 +43,17 @@ class NavigationComponentTopic(NavigationComponent):
         self,
         parent_node: Node,
         robot_name: str,
-        navigation_request: str = "navigation_request",
-        navigation_status: str = "navigation_status",
-        navigation_ack: str = "navigation_ack",
-        subscription_prefix: str = ""
-    ):
+        msg_handler: MessageHandler):
         self._parent_node = parent_node
         self._robot_name = robot_name
-        self._in_progress = False
-        self._goal_success = False
-        self._current_goal_idx = -1
-        self._goal_msg_recv = False
+        self._msg_handler = msg_handler
 
-        self._logged_goal = False
-
-        qos_profile = QoSProfile(
-            reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.VOLATILE,
-            history=HistoryPolicy.KEEP_ALL,
-        )
-
-        self._goal_req_pub = self._parent_node.create_publisher(
-            GoalRequest,
-            navigation_request,
-            qos_profile,
-        )
-
-        sub_cbk_group = ReentrantCallbackGroup()
-        self._goal_status_sub = self._parent_node.create_subscription(
-            GoalStatus,
-            subscription_prefix + navigation_status,
-            self._goal_status_cbk,
-            qos_profile,
-            callback_group=sub_cbk_group,
-        )
-
-        self._ack_pub = self._parent_node.create_publisher(
-            Int16, navigation_ack, qos_profile
-        )
-
-        self._log_info(f"init")
+        self._log_info(f"Init nav component")
 
     def _log_info(self, msg: str) -> None:
         self._parent_node.get_logger().info(
             f"[nav manager topic] [{self._robot_name}] {msg}"
         )
-
-    def _goal_status_cbk(self, goal_status: GoalStatus) -> None:
-
-        self._log_info(f"got goal status msg {goal_status}")
-
-        if goal_status.idx != self._current_goal_idx:
-            return
-
-        self._goal_msg_recv = True
-
-        if goal_status.status == 0:
-            self._in_progress = True
-        elif goal_status.status == 1:
-            self._in_progress = False
-            self._goal_success = True
-        elif goal_status.status == 2:
-            self._in_progress = False
-            self._goal_success = False
-
-        # send ack that we got goal done msg
-        if self._in_progress == False:
-            ack_msg = Int16()
-            ack_msg.data = self._current_goal_idx
-            self._ack_pub.publish(ack_msg)
-            # self._log_info(
-            #     f"pub ack msg"
-            # )
 
     def navigate_and_wait(
         self,
@@ -121,51 +63,14 @@ class NavigationComponentTopic(NavigationComponent):
         timeout_sec: Optional[float | None] = None,
         check_yaw: Optional[bool] = False,
     ) -> bool:
-        self._in_progress = True
-        self._logged_goal = False
+        nav_behavior = self._msg_handler.get_navigate_msg(x, y, yaw, check_yaw)
+        response = self._msg_handler.send_and_wait(nav_behavior)
+        self._log_info(f"[navigate and wait] response is {response}")
 
-        self._current_goal_idx = self._current_goal_idx + 1
-        self._in_progress = True
-        self._goal_msg_recv = False
+        behavior_response = response[0]
+        success = behavior_response['success'][0]
 
-        goal_msg = self._get_goal_req(x, y, yaw, self._current_goal_idx, check_yaw)
-
-        self._log_info(
-            f"constructed goal msg {self._current_goal_idx} of {x} {y} {yaw}"
-        )
-
-        while not self._goal_msg_recv:
-            # if not self._logged_goal:
-            self._log_info(
-                f"[{self._robot_name}] sending goal msg: {self._current_goal_idx} of {x} {y} "
-            )
-                # self._logged_goal = True
-
-            self._goal_req_pub.publish(goal_msg)
-            time.sleep(5)
-
-        self._log_info(
-            f"waiting for goal response: {self._current_goal_idx} of {x} {y}"
-        )
-
-        while self._in_progress:
-            time.sleep(5)
-
-        self._log_info(f"goal done with succes: {self._goal_success}")
-
-        return self._goal_success
-
-    def _get_goal_req(
-        self, x: float, y: float, yaw: float, idx: int, check_yaw: bool
-    ) -> GoalRequest:
-        msg = GoalRequest()
-        msg.x = float(x)
-        msg.y = float(y)
-        msg.yaw = float(yaw)
-        msg.idx = idx
-        msg.check_yaw = check_yaw
-
-        return msg
+        return success
 
 
 class NavigationComponentAction:

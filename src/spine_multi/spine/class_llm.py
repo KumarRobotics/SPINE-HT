@@ -40,6 +40,7 @@ Requirements:
 - All directly referenced objects in the user task must be present.
 - Be specific: use precise object names rather than ambiguous categories.
 - Before outputting, double-check that only valid object classes are listed, that all task-referenced objects are included, and that class count aligns with task type.
+- DO NOT use spaces, use underscores instead. For example 'black car' should be 'black_car'
 
 After preparing your output, validate that it complies with all output formatting and checklist requirements; self-correct if any requirement is missed.
 
