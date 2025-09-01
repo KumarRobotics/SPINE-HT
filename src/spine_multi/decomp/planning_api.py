@@ -13,7 +13,8 @@ def ugv_navigate(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -
 def ugv_inspect(
     object_node: str, query: str, ugv_type=["any", "jackal", "husky"]
 ) -> str:
-    """Inspect `object_node` for a specific attribute `query`. The query is processed by a vision language model (VLA), and the VLA's answer will be provided."""
+    """Navigate to the closest region, then inspect `object_node` for a specific attribute `query`.
+    The query is processed by a vision language model (VLA), and the VLA's answer will be provided."""
 
 
 def ugv_map_region(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> str:

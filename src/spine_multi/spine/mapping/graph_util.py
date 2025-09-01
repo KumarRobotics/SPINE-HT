@@ -164,6 +164,11 @@ def parse_graph(
         G.add_node(name, coords=coords, type="region", **node)
 
     for edge in data["object_connections"]:
+        # TODO this is a tmp fix
+        if not isinstance(edge, list):
+            edge = [e.strip() for e in edge.split(",")]
+
+        print(edge)
         c1 = G.nodes[edge[0]]["coords"]
         c2 = G.nodes[edge[1]]["coords"]
         # print(f"edge: {edge}, c1, c2: {c1}, {c2}")
@@ -175,6 +180,11 @@ def parse_graph(
         G.add_edge(edge[0], edge[1], **kwargs)
 
     for edge in data["region_connections"]:
+        # TODO this is a tmp fix
+        if not isinstance(edge, list):
+            edge = [e.strip() for e in edge.split(",")]
+
+
         c1 = G.nodes[edge[0]]["coords"]
         c2 = G.nodes[edge[1]]["coords"]
         # print(f"edge: {edge}, c1, c2: {c1}, {c2}")
@@ -571,3 +581,14 @@ class GraphHandler:
         out += f"Region edges:\n---\n"
         out += region_edges
         return out
+
+if __name__ == "__main__":
+    g = GraphHandler("/home/zac/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json")
+
+    s = g.to_json_str()
+    d = json.loads(s)
+
+    # g = parse_graph(d)
+
+    g.reset(d)
+    debug = True

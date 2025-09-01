@@ -59,3 +59,9 @@ def break_long_str(in_str: str, max_length: int = 150) -> str:
     for segment in short_strs[1:]:
         out += f"\n\t\t{segment}"
     return out
+
+
+if __name__ == "__main__":
+    logger = get_logger(name="test.log", output="both")
+
+    logger.info('testing')

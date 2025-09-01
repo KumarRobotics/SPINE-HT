@@ -7,6 +7,8 @@ from concurrent.futures import Future
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Dict
+from nav_msgs.msg import OccupancyGrid
+from scipy.spatial.transform import Rotation
 
 import numpy as np
 import rclpy
@@ -23,6 +25,9 @@ from spine_multi.parsing import ListDictParser
 from std_msgs.msg import Int16, String
 from teaming_msgs.msg import BehaviorRequest, BehaviorResult, GoalRequest, GoalStatus
 from teaming_msgs.srv import SetLabels, Query
+from spine_multi.spine.mapping.frontiers import FrontierExtractor, Node as GraphNode
+from spine_multi.spine.mapping.graph_util import GraphHandler, parse_graph
+import json
 
 
 class GoalStatusEnum(Enum):
@@ -64,6 +69,7 @@ class JackalAutonomyManager(Node):
                 ("subscription_prefix", ""),
                 ("label_service", "/detector/set_labels"),
                 ("vlm_service", "vlm_node/query_scene"),
+                ("costmap_topic", "local_costmap/costmap")
             ],
         )
 
@@ -75,6 +81,10 @@ class JackalAutonomyManager(Node):
         )
         vlm_service_name = (
             self.get_parameter("vlm_service").get_parameter_value().string_value
+        )
+
+        costmap_topic = (
+            self.get_parameter("costmap_topic").get_parameter_value().string_value
         )
 
         self._parser = ListDictParser()
@@ -109,6 +119,28 @@ class JackalAutonomyManager(Node):
             self._response_ack,
             qos_profile,
             callback_group=response_ack_cbk,
+        )        
+        
+        
+        self._graph = GraphHandler("")
+        self._frontier_extractor = FrontierExtractor(init_graph=self._graph)
+
+        costmap_cbk_group = ReentrantCallbackGroup()
+        self.costmap_sub = self.create_subscription(
+            OccupancyGrid,
+            costmap_topic,
+            self._costmap_cbk,
+            qos_profile,
+            callback_group=costmap_cbk_group,
+        )
+
+        graph_cbk_group = ReentrantCallbackGroup()
+        self.graph_sub = self.create_subscription(
+            String,
+            "/basestation/graph",
+            self._graph_cbk,
+            qos_profile,
+            callback_group=graph_cbk_group
         )
 
         self._log_info("created pub / sub")
@@ -128,11 +160,46 @@ class JackalAutonomyManager(Node):
             parent_node=self,
             vlm_service=vlm_service_name,
         )
-        # TODO have queue of results to publish
-        result_pub_group = ReentrantCallbackGroup()
-        # self._result_pub_timer = self.create_timer(
-        #     1, self._result_pub_cbk, callback_group=result_pub_group
-        # )
+
+        self._log_info("init")
+
+
+    
+    def _graph_cbk(self, msg: String):
+        graph_as_str = msg.data 
+
+        if len(self._graph.graph.nodes) == 0:
+            self._log_info(f"Have initial graph: {graph_as_str}")
+ 
+        try:
+            graph = json.loads(graph_as_str)
+            self._graph.reset(graph)
+
+        except Exception as ex:
+            self._log_info(f"could not parse graph; {ex}")
+
+
+    def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
+        # self.get_logger().info('[spine node] get costmap')
+        pose_in_map = costmap_msg.info.origin
+        position = np.array([pose_in_map.position.x, pose_in_map.position.y])
+        yaw = Rotation.from_quat(
+            [
+                pose_in_map.orientation.x,
+                pose_in_map.orientation.y,
+                pose_in_map.orientation.z,
+                pose_in_map.orientation.w,
+            ]
+        ).as_euler("xyz")[0]
+        costmap = np.array(costmap_msg.data).reshape(
+            costmap_msg.info.height, costmap_msg.info.width
+        )
+        filtered_costmap = self._frontier_extractor.update_costmap(
+            costmap=costmap,
+            resolution_m_p_cell=costmap_msg.info.resolution,
+            pos=position,
+            yaw=yaw,
+        )
 
     def _result_pub_cbk(self):
         self._log_info(f"in result pub cbk: {self._behavior_results}")
@@ -216,6 +283,8 @@ class JackalAutonomyManager(Node):
                     self._log_info(f"got labels call result : {result}")
                     outcomes.append(result)
 
+                    if not result["success"]:
+                        break
 
                 if behavior == "query_vlm":
                     query = task["query"][0]
@@ -225,6 +294,14 @@ class JackalAutonomyManager(Node):
                     self._log_info(f"got response: {result}")
                     outcomes.append(result)
 
+                    if not result["success"]:
+                        break
+
+                if behavior == "map_region":
+                    current_location = task["current_location"][0]
+                    outcomes.append(self._try_add_edges(node_id=current_location))
+
+
             self._log_info(f"at end of call")
 
             result_msg = self._build_result_msg(idx=msg.idx, data=outcomes)
@@ -232,6 +309,32 @@ class JackalAutonomyManager(Node):
                 self._result_pub.publish(result_msg)
                 time.sleep(15)
                 self._log_info(f"pub response: {result_msg.result}")
+        
+
+    def _try_add_edges(self, node_id) -> dict:
+        coords, _ = self._graph.get_node_coords(node_id)
+
+        if isinstance(coords, list):
+            try:
+                coords = np.array([float(c) for c in coords])
+            except Exception as ex: 
+                self._log_info(f"ERROR [try add edge] when parsing coords {ex}")
+                return {}
+
+        region_info = self._graph.get_region_nodes_and_locs()
+
+        new_neighbors = self._frontier_extractor.get_missing_neighbors(node_id, coords)
+
+        self._log_info(f"found new neighbors of node {node_id}: {new_neighbors}")
+
+        # remove self edges
+        new_neighbors = "|".join([neighbor for neighbor in new_neighbors if neighbor != node_id])
+
+        result = {"behavior": ("map_region", "str"),
+                  "success": (True, "bool"),
+                  "new_neighbors": (new_neighbors, "str")}
+
+        return result
 
 
 class LabelServiceTranslator:
@@ -354,6 +457,7 @@ class JackalNavigationComponent:
 
         self._strict_yaw = False
         self._log_info_idx = 0
+        self._goal_successful = False
 
     def _log_info(self, msg: str) -> None:
         self._parent_node.get_logger().info(f"[navigation component action] {msg}")
@@ -367,6 +471,7 @@ class JackalNavigationComponent:
         check_yaw: Optional[bool] = False,
     ) -> Tuple[bool, str]:
         self._in_progress = True
+        self._goal_successful = False
         self._result_future = Future()
 
         self.send_goal(x, y, yaw, check_yaw=check_yaw)
@@ -379,7 +484,7 @@ class JackalNavigationComponent:
 
         # TODO check this
         # return self._result_future._result, ""
-        return True, ""
+        return self._goal_successful, ""
 
     def send_goal(
         self,
@@ -499,6 +604,7 @@ class JackalNavigationComponent:
         if status == 4:  # SUCCEEDED
             self._log_info("Navigation succeeded!")
             success = True
+            self._goal_successful = True
         elif status == 5:  # CANCELED
             self._parent_node.get_logger().warn("[nav manager] Navigation was canceled")
         elif status == 6:  # ABORTED
@@ -510,6 +616,7 @@ class JackalNavigationComponent:
 
         if self._distance_remaining < self._goal_tol:
             success = True
+            self._goal_successful = True
 
         self._in_progress = False
         self._goal_handle = None
@@ -565,7 +672,6 @@ class VLMServiceComponent:
             self._log_info("waiting for vlm response")
             time.sleep(5)
 
-
         return self._result
 
     def _query_vlm_async(self, vlm_request: str, idx: int):
@@ -601,11 +707,11 @@ class VLMServiceComponent:
 
         self._in_progress = False
 
-        self._result =  {
-                    "behavior": ("query_vlm", "str"),
-                    "success": (success, "bool"),
-                    "answer": (answer, "str"),
-                }
+        self._result = {
+            "behavior": ("query_vlm", "str"),
+            "success": (success, "bool"),
+            "answer": (answer, "str"),
+        }
 
 
 def main():

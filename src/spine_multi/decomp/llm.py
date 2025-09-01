@@ -8,7 +8,7 @@ from openai import OpenAI
 from spine_multi.allocation.assignment import TaskDescription
 from spine_multi.decomp.prompts import build_prompt
 from spine_multi.decomp.util import _parse_function_call
-from spine_multi.logging import break_long_str
+from spine_multi.planner_logging import break_long_str
 
 
 class MissionDecomp:

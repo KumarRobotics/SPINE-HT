@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation
-from spine_multi.logging import get_logger
+from spine_multi.planner_logging import get_logger
 from spine_multi.spine.mapping.graph_util import GraphHandler
 
 CostMapWithInfo = namedtuple("CostMap", ["map", "resolution_m_p_cell", "pos", "yaw"])
@@ -23,7 +23,8 @@ class FrontierExtractor:
     ) -> None:
         self.costmap_with_info = None
         self.graph_handler = init_graph
-        self.compute_region_nodes()
+        self.region_nodes = np.array([])
+        self.region_node_locs = np.array([])
         self.min_new_frontier_thresh = min_new_frontier_thresh
         self.filtered_costmap_with_info = None
 
@@ -174,6 +175,7 @@ class FrontierExtractor:
         bool
             True if point is in costmap.
         """
+        log = ""
         pt_in_costmap = self.world_to_costmap(
             pt=pt,
             pos=costmap_info.pos,
@@ -181,12 +183,15 @@ class FrontierExtractor:
             resolution=costmap_info.resolution_m_p_cell,
         ).squeeze()
 
+        log += f"point: {pt} -> {pt_in_costmap}\n"
+        log += f"bounds: {costmap_info.map.shape}"
+
         return not (
             (pt_in_costmap[0] < 0)
             or (pt_in_costmap[0] >= costmap_info.map.shape[0])
             or (pt_in_costmap[1] < 0)
             or (pt_in_costmap[1] >= costmap_info.map.shape[1])
-        )
+        ), log
 
     def pt_in_costmap(self, pt: np.ndarray, costmap_info: CostMapWithInfo) -> bool:
         """True if point lies in costmap bounds"""
@@ -258,6 +263,8 @@ class FrontierExtractor:
         self.costmap_with_info = CostMapWithInfo(
             map=costmap, resolution_m_p_cell=resolution_m_p_cell, pos=pos, yaw=yaw
         )
+
+        self.compute_region_nodes()
 
         if self.costmap_filter_n_cells > 0 and self.costmap_filter_threshold > 0:
             self.filtered_costmap_with_info = self.filter_costmap(
@@ -508,7 +515,9 @@ class FrontierExtractor:
         # TODO make parallel
         inds = []
         for i, region in enumerate(self.region_node_locs):
-            if self.is_pt_in_costmap(region.squeeze(), costmap_info=costmap_info):
+            in_costmap, log = self.is_pt_in_costmap(region.squeeze(), costmap_info=costmap_info)
+
+            if in_costmap:
                 inds.append(i)
 
         return np.array(inds)
@@ -586,7 +595,7 @@ class FrontierExtractor:
         if not success:
             return frontiers, ""
 
-        region_in_costmap_inds = self.get_regions_in_costmap_idx(
+        region_in_costmap_ind = self.get_regions_in_costmap_idx(
             costmap_info=self.filtered_costmap_with_info
         )
 
@@ -647,6 +656,7 @@ class FrontierExtractor:
             potential_neighbors_inds=region_in_costmap_inds,
             resolution_m_p_cell=self.get_resolution_m_p_cell(),
         )
+
 
         current_neighbors = self.graph_handler.get_neighbors(node_id)
         new_neighbors = set(all_neighbors) - set(current_neighbors)

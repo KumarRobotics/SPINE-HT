@@ -18,7 +18,7 @@ from spine_multi.spine import SPINE, GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
-from spine_multi.logging import get_logger
+from spine_multi.planner_logging import get_logger
 from spine_multi_ros.action_manager import ActionManager
 from spine_multi_ros.nav_manager import (
     NavigationComponentAction,

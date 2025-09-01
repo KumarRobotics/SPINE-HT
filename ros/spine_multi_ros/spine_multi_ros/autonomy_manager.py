@@ -2,11 +2,10 @@
 
 
 from logging import Logger
-from typing import Optional
+from typing import Any, List, Tuple
 
 import numpy as np
 from nav_msgs.msg import OccupancyGrid
-from rcl_interfaces.srv import SetParameters
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -16,17 +15,10 @@ from spine_multi.spine import GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
-from teaming_msgs.srv import Query
 
 from spine_multi_ros.action_manager import ActionManager
 from spine_multi_ros.msg_handler import MessageHandler
-from spine_multi_ros.nav_manager import (
-    NavigationComponentAction,
-    NavigationComponentTopic,
-)
-from spine_multi_ros.set_label_manager import LabelManagerTopic
 from spine_multi_ros.tracker_client import TrackerClientComponent
-from spine_multi_ros.vlm_manager import VLMManagerAction, VLMManagerTopic
 
 
 class AutonomyManager:
@@ -78,23 +70,6 @@ class AutonomyManager:
             qos_profile=qos_profile,
         )
 
-        self._label_manager = LabelManagerTopic(
-            parent_node=parent_node,
-            robot_name=robot_name,
-            msg_handler=self._msg_handler,
-        )
-
-        self._nav_component = NavigationComponentTopic(
-            parent_node=parent_node,
-            robot_name=robot_name,
-            msg_handler=self._msg_handler,
-        )
-        self._vlm_manager = VLMManagerTopic(
-            parent_node=parent_node,
-            robot_name=self._robot_name,
-            msg_handler=self._msg_handler
-        )
-
         self._graph_viz = GraphVisualizerComponent(
             parent_node=parent_node,
             graph=self._graph,
@@ -114,21 +89,22 @@ class AutonomyManager:
             tracks=tracks,
         )
 
-
         self._action_manager = ActionManager(
             parent_node=parent_node,
             robot_name=self._robot_name,
             graph=self._graph,
             graph_viz=self._graph_viz,
             prompt_former=self._prompt_former,
-            nav_component=self._nav_component,
-            vlm_client=self._vlm_manager,
             frontier_extractor=self._frontier_extractor,
             logger=self._logger,
+            msg_handler=self._msg_handler,
         )
 
         self._behavior_library = self._action_manager.construct_behavior_library()
-        self._behavior_library["set_labels"] = self.set_labels
+        self._msg_building_library = (
+            self._action_manager.construct_msg_building_library()
+        )
+        self._msg_parsing_library = self._action_manager.construct_msg_parsing_library()
 
         self._log_info(f"constructed behavior library")
 
@@ -148,7 +124,7 @@ class AutonomyManager:
         log_msg = f"[autonomy manager] [{self._robot_name}] {msg}"
 
         self._parent_node.get_logger().info(log_msg)
-        self._logger.info(log_msg)
+        # self._logger.info(log_msg)
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
         # self.get_logger().info('[spine node] get costmap')
@@ -175,5 +151,38 @@ class AutonomyManager:
     def call_behavior(self, behavior, args):
         return self._behavior_library[behavior](*args)
 
-    def set_labels(self, labels: str) -> bool:
-        return self._label_manager._set_labels(labels)
+    def call_behavior_sequence(
+        self, behavior_requests: List[Tuple[str, List[Any]]]
+    ) -> List[bool]:
+        behavior_req_data = []
+        all_metadata = {}
+        behavior_info = []
+
+        self._log_info(f"in call behavior sequence with {behavior_requests}")
+
+        for behavior, args in behavior_requests:
+            if behavior not in self._msg_building_library:
+                self._log_info(f"ERROR {behavior} not in msg building library")
+
+            behavior_req_msg, metadata = self._msg_building_library[behavior](*args)
+
+            behavior_req_data.extend(behavior_req_msg)
+            behavior_info.append([behavior, len(behavior_req_msg), metadata])
+
+        behavior_req_msg = self._msg_handler.build_behavior_msg(behavior_req_data)
+        results = self._msg_handler.send_and_wait(behavior_req_msg)
+
+        self._log_info(f"got back results: {results}")
+
+        # now parse
+
+        idx = 0
+        behavior_success = []
+
+        for behavior, n_msgs, metadata in behavior_info:
+            msg_block = results[idx : idx + n_msgs]
+            result = self._msg_parsing_library[behavior](msg_block, metadata)
+            behavior_success.append(result)
+            idx += n_msgs
+
+        return behavior_success

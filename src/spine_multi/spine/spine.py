@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from openai import OpenAI
-from spine_multi.logging import get_logger
+from spine_multi.planner_logging import get_logger
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.models import OpenAILLM
 from spine_multi.spine.prompts.prompts import INVALID_JSON

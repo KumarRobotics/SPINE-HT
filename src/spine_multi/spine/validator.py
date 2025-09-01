@@ -156,7 +156,6 @@ class Validator:
                 feedback = (
                     f"Feedback: scene does not contain {first_arg}. "
                     f"All plans must reference nodes in the current scene. "
-                    f"If your plan depends on potentially discovered regions or objects, consider using `replan()` as a placeholder. "
                     f"Update your plan accordingly."
                 )
                 return [], ValidPlanFeedback(False, feedback)

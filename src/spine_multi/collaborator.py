@@ -16,7 +16,7 @@ from spine_multi.allocation.translator import (
     translate_task_for_validation,
 )
 from spine_multi.decomp.llm import MissionDecomp
-from spine_multi.logging import break_long_str, get_logger
+from spine_multi.planner_logging import break_long_str, get_logger
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi.spine.validator import Validator
 
@@ -37,6 +37,32 @@ HUSKY_CAPABILITIES = [
 FALCON_4_CAPABILITIES = ["uav_goto", "uav_map", "uav_explore"]
 
 
+# TODO should go into src
+@dataclass
+class RobotConfig:
+    name: str
+    namespace: str
+    type: str
+    subscription_prefix: str
+    init_location: str
+    nav_target_frame: str
+    graph_viz_topic: str
+    track_topic: str
+    local_costmap_topic: str
+    behavior_request_pub: str
+    behavior_request_ack_sub: str
+    behavior_result_sub: str
+    behavior_result_ack_pub: str
+
+
+@dataclass
+class BehaviorResult:
+    robot: str
+    behavior: str
+    success: bool
+    error: str
+
+
 @dataclass
 class AllocationResult:
     specification: str
@@ -50,9 +76,9 @@ class AllocationResult:
     # tasks to be assigned this planning iteration
     assignment_set: List[TaskDescription]
 
-    assigments: Tuple[str, str]
+    assignments: Tuple[str, str]
 
-    translated_assigments: Tuple[str, Tuple[str, List[str]]]
+    translated_assignments: Tuple[str, Tuple[str, List[str]]]
 
     mission_is_done: bool
     mission_answer: str
@@ -201,8 +227,8 @@ class Collaborator:
             decomposition_log=out,
             mission_traces=traces,
             assignment_set=assigment_tasks,
-            assigments=assignments,
-            translated_assigments=translated_assignments,
+            assignments=assignments,
+            translated_assignments=translated_assignments,
             mission_is_done=mission_is_done,
             mission_answer="",
         )
@@ -218,8 +244,8 @@ class Collaborator:
             decomposition_log=log,
             mission_traces=[[]],
             assignment_set=[],
-            assigments=[],
-            translated_assigments=[],
+            assignments=[],
+            translated_assignments=[],
             mission_is_done=True,
             mission_answer=answer,
         )
@@ -237,9 +263,9 @@ class Collaborator:
         for assignment in result.assignment_set:
             log += f"\t{break_long_str(str(assignment))}\n"
         log += "\n"
-        log += f"assignments:\n\t{result.assigments}\n\n"
+        log += f"assignments:\n\t{result.assignments}\n\n"
         log += f"all assigned tasks\n\t{break_long_str(str(self._allocator._assigned_tasks))}\n\n"
-        log += f"translated assignments:\n\t{result.translated_assigments}\n\n"
+        log += f"translated assignments:\n\t{result.translated_assignments}\n\n"
         log += f"mission complete:\n\t{result.mission_is_done}\n\n"
         return log
 

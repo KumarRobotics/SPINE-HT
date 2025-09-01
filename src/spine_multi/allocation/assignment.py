@@ -143,6 +143,7 @@ class RobotTaskAssigment:
     def _solve_hungarian(
         self, tasks: List[TaskDescription]
     ) -> Tuple[List[Tuple[str, str]], float, List[TaskDescription]]:
+
         n_robots = len(self._robots)
         n_tasks = len(tasks)
 
@@ -195,6 +196,9 @@ class RobotTaskAssigment:
                     total_cost += cost_matrix[i, j]
 
                     assigned_tasks.append(tasks[j])
+
+        self._logger.info(f"[collaborator] [solver] Solving assignment for tasks: {tasks} \n with robots: {self._robots}" \
+                          f"results are {assignments}")
 
         return assignments, total_cost, assigned_tasks
 

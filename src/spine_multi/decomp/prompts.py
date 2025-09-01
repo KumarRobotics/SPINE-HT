@@ -32,13 +32,9 @@ PROMPT_TEMPLATE = """
 - For each step, input includes: <team specification>, <mission specification>, and <semantic graph>.
 - Produce a <team allocation> as a single JSON object, conforming strictly to the output schema below. Ensure all field specifications and planning constraints are followed exactly.
 - Planning is iterative: after each plan execution, you may receive updated feedback or semantic graph modifications. Revise and regenerate your plan in each new iteration.
-- After submitting a plan, provide a brief (1-2 lines) validation of plan consistency and executability. If issues or new feedback arise, revise and output an updated JSON object accordingly.
 - Always address infeasibility or feedback by updating your plan, such as generating intermediate subtasks or correcting syntax.
 - Do not call tasks until they are feasible. If you receive feedback about a task, it is infeasible.
 
-
-
- Do not call tasks until they are feasible. If you receive feedback about a task, it is infeasible.
 
 ## Robot team specification
 - {team_specification}
@@ -76,6 +72,7 @@ PROMPT_TEMPLATE = """
 - Ensure that all proposed tasks are executable within the current semantic graph and robot team.
 - Only include tasks currently feasible; defer others.
 - Before returning output, verify all tasks for correctness and completeness.
+- Aim to make concise plans. For example, if inspecting an object entails navigation, so do not call navigation then inspection unless necessary
 
 # Adapting plans
 - Revise in response to feedback or infeasibility by correcting errors or adding intermediate plans; regenerate output.
@@ -183,7 +180,7 @@ Each response must be a single JSON object with these required fields (names, ty
 "tasks": ["string", ...],
 "dependency_reasoning": "string: explanation of task dependencies",
 "dependency_graph": [["prior_task", "dependent_task"]],
-"is_extended": true
+"is_extended": true if mission is extended
 }}
 
 ```
@@ -203,6 +200,6 @@ def build_prompt(team_specification: str) -> str:
             planning_api=planning_api,
             mapping_api=mapping_api,
         )
-        + EXAMPLE
+        # + EXAMPLE
         + POSTPEND
     )

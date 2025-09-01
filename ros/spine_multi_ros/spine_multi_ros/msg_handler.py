@@ -1,13 +1,15 @@
 from rclpy.node import Node
 
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, TypeAlias, Union
 from spine_multi.parsing import ListDictParser
 from teaming_msgs.msg import GoalRequest, GoalStatus, BehaviorRequest, BehaviorResult
 from std_msgs.msg import String, Int16
 from rclpy.callback_groups import ReentrantCallbackGroup
 import time
 
+BehaviorDataPrimitive: TypeAlias = Union[str, int, float, bool]
 
+BehaviorRequestData: TypeAlias = List[Dict[str, Tuple[str, BehaviorDataPrimitive]]]
 
 
 
@@ -69,23 +71,40 @@ class MessageHandler:
         msg = self.get_navigate_msg(x=x, y=y, yaw=yaw, check_yaw=check_yaw)
         return self.send_and_wait(msg)
 
+
+    def build_behavior_msg(self, data: List[dict]) -> BehaviorRequest:
+        msg = BehaviorRequest()
+        string_msg = String()
+        string_msg.data = self._msg_converter.serialize(data)
+        msg.behaviors = string_msg
+        msg.idx = self._behavior_idx 
+        self._behavior_idx += 1
+
+        return msg
+
+
+
     def get_navigate_msg(
         self, x: float, y: float, yaw: float,  check_yaw: bool
     ) -> BehaviorRequest:
         msg = BehaviorRequest()
         string_msg = String()
         string_msg.data = self._msg_converter.serialize([
-            {"behavior": ("navigate", "str"),
-             "x": (x, 'float'),
-             "y": (y, "float"),
-             "yaw": (yaw, "float"),
-             "check_yaw": (check_yaw, "bool")}
+            self.build_navigate_msg_dict(x, y, yaw, check_yaw)
         ])
         msg.behaviors = string_msg
         msg.idx = self._behavior_idx 
         self._behavior_idx += 1
 
         return msg
+
+    def build_navigate_msg_dict(self, x: float, y: float, yaw: float, check_yaw: bool) -> Dict[str, Tuple[Any, str]]:
+        return {"behavior": ("navigate", "str"),
+             "x": (x, 'float'),
+             "y": (y, "float"),
+             "yaw": (yaw, "float"),
+             "check_yaw": (check_yaw, "bool")}
+
 
     def send_label_request(self, label_list: str):
         msg = self.get_label_msg(label_list=label_list)
@@ -104,6 +123,12 @@ class MessageHandler:
 
         return msg
 
+    def build_label_msg_dict(self, label_list: str) -> dict:
+        return [
+            {"behavior": ("set_labels", "str"),
+             "labels": (label_list, "str")}
+         ]
+
     def send_vlm_query(self, query: str):
         msg = self.get_vlm_query_msg(query=query)
         return self.send_and_wait(msg)
@@ -112,12 +137,15 @@ class MessageHandler:
         msg = BehaviorRequest()
         string_msg = String() 
         string_msg.data = self._msg_converter.serialize([
-            {"behavior": ("query_vlm", "str"), "query": (query, "string")}
+            self.build_vlm_query_dict(query)
         ])
         msg.behaviors = string_msg
         msg.idx = self._behavior_idx 
         self._behavior_idx += 1
         return msg
+
+    def build_vlm_query_dict(self, query: str):
+        return [{"behavior": ("query_vlm", "str"), "query": (query, "string")}]
 
 
     def send_and_wait(self, msg: BehaviorRequest):

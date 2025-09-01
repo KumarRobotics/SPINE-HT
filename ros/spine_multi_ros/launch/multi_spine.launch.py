@@ -87,8 +87,6 @@ def generate_launch_description():
                 "record",
                 "-d", "60",
                 "-a",
-                "/tf",
-                "/tf_static",
                 "-o",
                 get_log_dir(),
             ],

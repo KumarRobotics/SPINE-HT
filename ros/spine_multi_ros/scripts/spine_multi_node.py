@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
 
-import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, TypeAlias
+import json
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import String
+from rclpy.callback_groups import ReentrantCallbackGroup
 
 import numpy as np
 import rclpy
@@ -20,38 +23,18 @@ from spine_multi.collaborator import (
     JACKAL_CAPABILITIES,
     Collaborator,
     RobotDescription,
+    RobotConfig,
+    BehaviorResult,
 )
-from spine_multi.logging import get_logger
+from spine_multi.planner_logging import get_logger
 from spine_multi.spine.class_llm import ClassLLM
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi_ros.autonomy_manager import AutonomyManager
 from teaming_msgs.srv import Mission
 
 
-# TODO should go into src
-@dataclass
-class RobotConfig:
-    name: str
-    namespace: str
-    type: str
-    subscription_prefix: str
-    init_location: str
-    nav_target_frame: str
-    graph_viz_topic: str
-    track_topic: str
-    local_costmap_topic: str
-    behavior_request_pub: str 
-    behavior_request_ack_sub: str 
-    behavior_result_sub: str 
-    behavior_result_ack_pub: str
-
-
-@dataclass
-class BehaviorResult:
-    robot: str
-    behavior: str
-    success: bool
-    error: str
+# robot, [function, [args]]
+RobotTask: TypeAlias = Tuple[str, Tuple[str, List[str]]]
 
 
 class SPINEMultiNode(Node):
@@ -62,8 +45,7 @@ class SPINEMultiNode(Node):
             automatically_declare_parameters_from_overrides=True,
         )
 
-        robots = [
-        ]
+        robots = []
         team_specification = (
             self.get_parameter("team_specification").get_parameter_value().string_value
         )
@@ -89,6 +71,7 @@ class SPINEMultiNode(Node):
             )
 
         self._graph = GraphHandler(graph_path=init_graph)
+
         self._tracks = {}
 
         self.get_logger().info(f"init graph is: {self._graph.to_json_str()}")
@@ -114,10 +97,29 @@ class SPINEMultiNode(Node):
 
         self._max_workers = len(self._robot_autonomy_managers)
         self._thread_executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        self._robot_tasks = defaultdict(list)
+
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            history=HistoryPolicy.KEEP_ALL,
+        )
+        self._graph_publisher = self.create_publisher(String, "graph", qos_profile)
+
+        timer_cbk_group = ReentrantCallbackGroup()
+        self.timer = self.create_timer(
+            1.0, self._graph_pub_cbk, callback_group=timer_cbk_group
+        )
 
         self.mission_srv = self.create_service(
             Mission, "/spine_multi/mission", self._mission_cbk
         )
+
+    def _graph_pub_cbk(self):
+        graph_as_str = str(self._graph.to_json_str())
+        msg = String()
+        msg.data = graph_as_str
+        self._graph_publisher.publish(msg)
 
     def _get_log_fname(self):
         log_dir = Path.home() / "data/spine-multi-logs"
@@ -184,6 +186,17 @@ class SPINEMultiNode(Node):
             assignments=set_label_assignments, planning_idx=0
         )
 
+    def _set_labels_to_tasks(self, label_set: str) -> List[BehaviorResult]:
+        # construct tasks
+        set_label_assignments = []
+        for robot, manager in self._robot_autonomy_managers.items():
+            set_label_assignments.append((robot, ("set_labels", [label_set])))
+            self._robot_tasks[robot].append(("set_labels", [label_set]))
+
+        # return self._task_robots_async(
+        #     assignments=set_label_assignments, planning_idx=0
+        # )
+
     def _mission_cbk(
         self, request: Mission.Request, response: Mission.Response
     ) -> Mission.Response:
@@ -191,7 +204,7 @@ class SPINEMultiNode(Node):
 
         _, mission_labels = self._class_llm.request(request.spec)
         self._log_info(f"setting mission labels: {mission_labels}")
-        self._set_labels(",".join(mission_labels["classes"]))
+        self._set_labels_to_tasks(",".join(mission_labels["classes"]))
 
         self._collaborator.init_planner(mission_specifications=request.spec)
         allocation_result = self._collaborator.get_allocation()
@@ -209,27 +222,35 @@ class SPINEMultiNode(Node):
             if allocation_result.mission_is_done:
                 break
 
-            assignments = allocation_result.translated_assigments
+            assignments = allocation_result.translated_assignments
+
+            # add assignments to task queue
+            for robot, task in assignments:
+                self._robot_tasks[robot].append(task)
+
             assignment_str = ""
 
             assignment_str += ",".join(
-                [f"{r} was assigned {t}" for (r, t) in allocation_result.assigments]
+                [f"{r} was assigned {t}" for (r, t) in allocation_result.assignments]
             )
             self.get_logger().info(
                 f"[spine node] Got assignments:\n\t {assignment_str}"
             )
 
             while len(assignments):  # TODO should have a timeout
-                self._log_info(f"Assigning the following async: {assignments}")
+                # self._log_info(f"Assigning the following async: {assignments}")
 
                 task_results = self._task_robots_async(assignments, planning_idx)
 
-                self._log_info(f"robot results are done")
+                self._log_info(
+                    f"robot results are done with dictionary: {task_results}"
+                )
 
-                for result in task_results:
-                    self._log_info(
-                        f"\t{result.robot} - {result.behavior} - {result.success} - {result.error}"
-                    )
+                for robot, behavior_results in task_results.items():
+                    status_msg = f"\t{robot}\n"
+                    for behavior_result in behavior_results:
+                        status_msg += f"\t\t{behavior_result.behavior} - {behavior_result.success} - {behavior_result.error}\n"
+                    self._log_info(status_msg)
 
                 # breaking conditions:
                 # 1. all tasks have been assigned
@@ -272,40 +293,43 @@ class SPINEMultiNode(Node):
 
     def _task_robots_async(
         self, assignments: List[Tuple[str, Tuple[str, List[str]]]], planning_idx: int
-    ) -> List[BehaviorResult]:
+    ) -> Dict[str, List[BehaviorResult]]:
         """TODO: this type is unwieldy. The idea is a list of
         robot: assigned behavior and args for that behavior.
         """
         future_to_robot = {
             self._thread_executor.submit(
-                self._call_behavior_async, robot, task, planning_idx
+                self._call_behavior_async, robot, self._robot_tasks[robot], planning_idx
             ): robot
             for robot, task in assignments
         }
 
-        results = []
+        results = defaultdict(list)
 
         for future in as_completed(future_to_robot):
             robot = future_to_robot[future]
 
             try:
-                result = future.result()
-                results.append(result)
+                robot_result = future.result()
+                results[robot].extend(robot_result)
 
-                self._log_info(f"[task robots async] result: {result}")
+                self._log_info(f"[task robots async] result: {robot_result}")
 
-                if result.success:
-                    self.get_logger().info(
-                        f"Robot {robot} behavior completed successfully"
-                    )
-                else:
-                    self.get_logger().error(
-                        f"Robot {robot} behavior failed: {result.error  }"
-                    )
+                for robot_result in robot_result:
+                    if robot_result.success:
+                        self.get_logger().info(
+                            f"Robot {robot} behavior completed successfully"
+                        )
+                    else:
+                        self.get_logger().error(
+                            f"Robot {robot} behavior failed: {robot_result.error  }"
+                        )
 
             except Exception as ex:
                 self.get_logger().error(f"Robot {robot} generated exception: {ex}")
-                results.append(BehaviorResult(robot, "unknown", False, str(ex)))
+                results[robot].append(
+                    BehaviorResult(robot, "unknown. ", False, str(ex))
+                )
 
             self.get_logger().info(
                 f"[spine node] robot results are done for {assignments}"
@@ -314,27 +338,36 @@ class SPINEMultiNode(Node):
         return results
 
     def _call_behavior_async(
-        self, robot: str, task: Tuple[str, List[Any]], planning_idx: int
-    ) -> BehaviorResult:
-        behavior, args = task
+        self, robot: str, task_seq: List[Tuple[str, List[Any]]], planning_idx: int
+    ) -> List[BehaviorResult]:
         self.get_logger().info(
-            f"[spine node] planning iteration {planning_idx}: commanding robot: {robot}: {task} with type: {type(task[1])}"
+            f"[spine node] planning iteration {planning_idx}: commanding robot: {robot}: {task_seq}"
         )
-
-        behavior, args = task
+        behaviors = [behavior for behavior, args in self._robot_tasks[robot]]
 
         success = "call_behavior not evaluated"
 
         try:
-            self.get_logger().info(f"args: {args}")
-            success = self._robot_autonomy_managers[robot].call_behavior(behavior, args)
-            return BehaviorResult(robot, behavior, success, None)
+            behavior_success = self._robot_autonomy_managers[
+                robot
+            ].call_behavior_sequence(task_seq)
+
+            behavior_results = []
+            for behavior, success in zip(behaviors, behavior_success):
+                behavior_results.append(BehaviorResult(robot, behavior, success, None))
+
+            self._robot_tasks[robot] = []
+            return behavior_results
 
         except Exception as ex:
-            self._log_info(f"got error with behavior: {robot} {behavior} {success}")
- 
-            self.get_logger().info(f"[spine node] Error in {robot} {behavior}: {ex}")
-            return BehaviorResult(robot, behavior, False, str(ex))
+            self._log_info(f"got error with behavior: {robot} {task_seq} {success}")
+            self.get_logger().info(f"[spine node] Error in {robot} {behaviors}: {ex}")
+
+            self._robot_tasks[robot] = []
+            return [
+                BehaviorResult(robot, behavior, False, str(ex))
+                for behavior in behaviors
+            ]
 
 
 def main():

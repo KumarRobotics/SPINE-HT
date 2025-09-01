@@ -47,6 +47,9 @@ class MultiRobotGraphHandler:
     def get_nx_graph(self) -> nx.Graph:
         return self._graph.graph
 
+    def get_node_type(self, node: str) -> str:
+        return self._graph.get_node_type(node)
+
     def lookup_node(self, node: str) -> Tuple[Dict, bool]:
         if self._graph.contains_node(node):
             return self._graph.get_nx_graph().nodes[node], True
