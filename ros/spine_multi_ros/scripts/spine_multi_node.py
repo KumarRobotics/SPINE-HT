@@ -56,6 +56,7 @@ class SPINEMultiNode(Node):
         self._planning_limit = (
             self.get_parameter("planning_limit_idx").get_parameter_value().integer_value
         )
+        self._llm_type = self.get_parameter("llm").get_parameter_value().string_value
 
         param_dict = self.get_parameters_by_prefix("robots")
         self._robot_configs = self.parse_params(param_dict)
@@ -87,6 +88,7 @@ class SPINEMultiNode(Node):
             team_spec_language=team_specification,
             init_location=init_location,
             logger=self._logger,
+            llm_type=self._llm_type
         )
         self._planning_limit = 5
         self._class_llm = ClassLLM()
