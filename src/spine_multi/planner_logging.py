@@ -1,5 +1,6 @@
 import logging
 import textwrap
+from logging import Logger
 from pathlib import Path
 
 HOME_DIR = Path().home()
@@ -64,4 +65,4 @@ def break_long_str(in_str: str, max_length: int = 150) -> str:
 if __name__ == "__main__":
     logger = get_logger(name="test.log", output="both")
 
-    logger.info('testing')
+    logger.info("testing")

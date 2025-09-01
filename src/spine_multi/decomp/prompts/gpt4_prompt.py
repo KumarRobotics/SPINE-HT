@@ -1,4 +1,6 @@
 # define base API
+
+from spine_multi.decomp.examples import EXAMPLE
 import importlib
 import importlib.resources
 import importlib.util
@@ -23,33 +25,37 @@ mapping_api = "".join(mapping_api[3:])
 
 
 # fmt: off
-PROMPT_TEMPLATE = """
+GPT4_PROMPT_TEMPLATE = """
 # Role and Objective
 - Serve as a multi-robot task allocator, generating and refining task allocation plans for a fleet of robots. Respond dynamically to changes in team composition, mission objectives, and the semantic graph environment.
 
 # Instructions
 - Begin each planning iteration with a concise conceptual checklist (3-7 bullets) outlining key planning steps (avoid implementation specifics).
 - For each step, input includes: <team specification>, <mission specification>, and <semantic graph>.
+- Explicitly identify and list all mission-relevant regions and objects by aligning mission terms to nodes in the semantic graph. 
+    - Always attempt to ground mission concepts to existing nodes before generating tasks. Start with the most relevant nodes.
+    - If multiple candidate nodes exist, explain the mapping choice.
+    - If no relevant nodes exist, state this clearly and fall back to exploration or prerequisite mapping tasks.
 - Produce a <team allocation> as a single JSON object, conforming strictly to the output schema below. Ensure all field specifications and planning constraints are followed exactly.
 - Planning is iterative: after each plan execution, you may receive updated feedback or semantic graph modifications. Revise and regenerate your plan in each new iteration.
-- Always address infeasibility or feedback by updating your plan, such as generating intermediate subtasks or correcting syntax.
-- Do not call tasks until they are feasible. If you receive feedback about a task, it is infeasible.
-
 
 ## Robot team specification
 - {team_specification}
 - Available robot APIs are detailed below; only specify robot type in task calls if required by mission constraints.
 - Example: Only specify a particular robot type if only that type can fulfill the task.
+ - **When multiple robots are available, distribute them across distinct mission-critical regions, and account for their unique abilities, if relevant**
+
 
 ## Robot APIs
 - Each robot function is defined below. Function signatures and docstrings specify expected parameters and return fields. 
-- Do **not** include robot instance IDs in API calls. ONLY specify robot type if it is vital (e.g., only one robot can fulfill a task).
+- ONLY specify robot type if it is vital (e.g., only one robot can fulfill a task).
+- For APIs with the `roobt_name` option, you may specifiy a particular robot ONLY if there is good reason to do so.
+
 
 
 ```python
 {planning_api}
 ```
-
 
 ## Semantic Graph
 - Provided as a JSON object with fields: objects, regions, object_connections, region_connections, and init_location. Example:
@@ -72,14 +78,19 @@ PROMPT_TEMPLATE = """
 - Ensure that all proposed tasks are executable within the current semantic graph and robot team.
 - Only include tasks currently feasible; defer others.
 - Before returning output, verify all tasks for correctness and completeness.
-- Aim to make concise plans. For example, if inspecting an object entails navigation, so do not call navigation then inspection unless necessary
 
-# Adapting plans
+# Make concise plans
+- Do not call subsumed tasks. For example, if inspecting an object subsumes navigation, so do not call navigation then inspection unless necessary
+
+# Feasibility and Adapting plans
+- Always address infeasibility or feedback by updating your plan, such as generating intermediate subtasks or correcting syntax.
+- Do not call tasks until they are feasible. If you receive feedback about a task, it is infeasible.
 - Revise in response to feedback or infeasibility by correcting errors or adding intermediate plans; regenerate output.
+
+# Extending plans
 - Treat the previous plan as cumulative and authoritative unless instructed to modify otherwise; do not omit or deduplicate executed/planned tasks unless explicitly told to do so.
 - Each output iteration should be a superset of the previous plan unless instructed to remove tasks.
 - You will be given a list of previously completed tasks. Do not duplicate tasks during successive planning iterations. If the task did not return the designed information, calling that task again will not help.
-
 
 ## Sub-categories
 - If the semantic graph is empty and a UAV is available, prioritize initial UAV-led exploration. Otherwise, indicate waiting for additional information.
@@ -87,79 +98,7 @@ PROMPT_TEMPLATE = """
 
 """
 
-EXAMPLE = """
-## Example iterative plans:
-
-Example semantic graph
-{{
-    "objects": [],
-    "regions": [
-        {{"name": "region_1", "coords": ["0", "0"]}},
-    ],
-    "region_connections": [],
-    "object_connections": []
-}}
-
-Example specification: I am looking for a red car 10 meters east and 30 meters north.
-
-Example output iteration 1:
-{
-    "reasoning": "The UAV is used for initial exploration as goal location and semantics were not in the initial graph.
-    "mission_answer": "",
-    "tasks": [
-        "uav_explore_to(10.0, 30.0)"
-    ],
-    "dependency_reasoning": "The UAV should discovering new regions for the UGVs to map.",
-    "dependency_graph": [
-    ],
-    is_extended: False,
-}
-
-
-Example mapping update:
-uav_update: add_nodes({name=region_1, coords=[11, 32]}, {name=region_2, coords=[9, 30]}), add_connections([(region_1, region_2), (region_1, region_3)]) 
-
-Example output iteration 3:
-{
-    "reasoning": "The UGVs will map the newly discovered region. Because no specific traversability information was provided, I will assume any UGV can go to those regions. I will extend my mission graph with these tasks",
-    "mission_answer": "",
-    "tasks": [
-        "uav_explore_to(10.0, 30.0)",
-        "ugv_map(region_2, ugv_type='any')",
-        "ugv_map(region_3, ugv_type='any')",
-    ],
-    "dependency_reasoning": "The UGV mapping depends on UAV discovering new regions.",
-    "dependency_graph": [
-        ["uav_explore_to(10.0, 30.0)", "ugv_map(region_2, ugv_type='any')"],
-        ["uav_explore_to(10.0, 30.0)", "ugv_map(region_3, ugv_type='any')"]
-    ],
-    is_extended: True,
-}
-
-If one of the ugvs finds a red car near region 2
-husky_1_update: add_nodes({name=car_1, coords=[13, 32], description="red}), add_connections((car_1, region_3))
-
-
-Example output iteration 3:
-{
-    "reasoning": "Husky 1 found a red car, which matches the users request",
-    "mission_answer": "A red car was found near region_2 by husky_1",
-    "tasks": [
-        "uav_explore_to(10.0, 30.0)",
-        "ugv_map(region_2, ugv_type='any')",
-        "ugv_map(region_3, ugv_type='any')",
-    ],
-    "dependency_reasoning": "The UGV mapping depends on UAV discovering new regions.",
-    "dependency_graph": [
-        ["uav_explore_to(10.0, 30.0)", "ugv_map(region_2, ugv_type='any')"],
-        ["uav_explore_to(10.0, 30.0)", "ugv_map(region_3, ugv_type='any')"]
-    ],
-    is_extended: True,
-
-}
-"""
-
-POSTPEND = """
+GPT4_POSTPEND = """
 
 # Verbosity
 - Output a clear, concise JSON matching the specified schema. Include succinct justifications for planning decisions.
@@ -176,18 +115,27 @@ Each response must be a single JSON object with these required fields (names, ty
 ```json
 {{
 "reasoning": "string: concise rationale for the planning step",
+"relevant_regions": ["most_relevant", "second_most_relevant", ...],  // This may include regions you plan to leverage in future planning iterations
+"grounding_explanation": "string: explain how mission terms were mapped to semantic graph nodes, or why fallback was required",
+"tasking_explaination": "Justify why you tasked robots, given their capabilities",
+"relevant_graph": "List relevant portions of the graph, and explain why they are important",
 "mission_answer": "string: completed mission output or blank if still planning",
 "tasks": ["string", ...],
 "dependency_reasoning": "string: explanation of task dependencies",
 "dependency_graph": [["prior_task", "dependent_task"]],
 "is_extended": true if mission is extended
 }}
-
 ```
+
 - Include all fields in every output.
 - The `tasks` array must consist solely of formatted robot API call strings per the given function signatures.
 - The `dependency_graph` array must contain ["prior_task", "dependent_task"] pairs exactly matching `tasks` entries.
 - If validation errors are found post-output, revise and redo the full JSON object, adhering strictly to this schema.
+
+
+# Contextual reasoning
+- Attend to semantic relationships between the mission specification and graph.
+    - Make educated inferences. For example, if asked to find a car, look near the roads. Boats are near docks, etc.
 
 """
 # fmt: on
@@ -195,11 +143,11 @@ Each response must be a single JSON object with these required fields (names, ty
 
 def build_prompt(team_specification: str) -> str:
     return (
-        PROMPT_TEMPLATE.format(
+        GPT4_PROMPT_TEMPLATE.format(
             team_specification=team_specification,
             planning_api=planning_api,
             mapping_api=mapping_api,
         )
         # + EXAMPLE
-        + POSTPEND
+        + GPT4_POSTPEND
     )

@@ -1,4 +1,6 @@
-def ugv_navigate(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> bool:
+def ugv_navigate(
+    region_node: str, ugv_type: str = ["any", "jackal", "husky", "robot_name"]
+) -> bool:
     """Navigate to a node in the semantic graph. This MUST refer to an existing node.
 
     Parameters
@@ -11,18 +13,23 @@ def ugv_navigate(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -
 
 
 def ugv_inspect(
-    object_node: str, query: str, ugv_type=["any", "jackal", "husky"]
+    object_node: str, query: str, ugv_type=["any", "jackal", "husky", "robot_name"]
 ) -> str:
     """Navigate to the closest region, then inspect `object_node` for a specific attribute `query`.
-    The query is processed by a vision language model (VLA), and the VLA's answer will be provided."""
+    The query is processed by a vision language model (VLA), and the VLA's answer will be provided.
+    This subsumes navigating to the region closest to the object.
+    """
 
 
-def ugv_map_region(region_node: str, ugv_type: str = ["any", "jackal", "husky"]) -> str:
-    """Navigate to `region_node,` gather a semantic description, and discover nearby objects."""
+def ugv_map_region(
+    region_node: str, ugv_type: str = ["any", "jackal", "husky", "robot_name"]
+) -> str:
+    """Navigate to `region_node,` gather a semantic description, and discover nearby objects.
+    This subsumes navigation to region_node"""
 
 
 def ugv_explore_to(
-    x: float, y: float, ugv_type: str = ["any", "jackal", "husky"]
+    x: float, y: float, ugv_type: str = ["any", "jackal", "husky", "robot_name"]
 ) -> str:
     """Try to add a node near coordinate (x, y) to expand your semantic map. Returns map updates.
     Note that you may not reach the coordinate exactly."""

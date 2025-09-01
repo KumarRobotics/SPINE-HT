@@ -92,13 +92,16 @@ class Collaborator:
         semantic_graph: GraphHandler,
         init_location: str,
         logger: logging.Logger,
+        llm_type: Optional[str] = "gpt5",
     ):
         self._logger = logger
         self._allocator = RobotTaskAssigment(self._logger)
         self._allocator.add_robots(team_specification)
         self._semantic_graph = semantic_graph
         self._init_location = init_location
-        self._mission_decomp = MissionDecomp(team_specification=team_spec_language)
+        self._mission_decomp = MissionDecomp(
+            team_specification=team_spec_language, llm_type=llm_type
+        )
         self._validator = Validator(self._logger)
         self._updates_given_as_tasks = set()
 

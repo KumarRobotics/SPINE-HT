@@ -65,7 +65,7 @@ class SPINEMultiNode(Node):
                 RobotDescription(
                     id=robot_config.name,
                     type="jackal",
-                    capabilities=JACKAL_CAPABILITIES,
+                    capabilities=JACKAL_CAPABILITIES + [robot_config.name],
                     location=np.array([]),
                 )
             )
