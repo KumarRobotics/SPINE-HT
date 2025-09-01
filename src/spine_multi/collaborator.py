@@ -163,6 +163,9 @@ class Collaborator:
 
             traces = self._mission_decomp.get_mission_traces(mission_graph)
 
+            if len(traces) == 0 and out["mission_answer"] == "":
+                self._logger(f"WARNING No traces parsed. \nLLM output is {out}")
+
             llm_task_feedback = []
             for trace in itertools.chain.from_iterable(traces):
                 translated_task = translate_task_for_validation(trace.id)
