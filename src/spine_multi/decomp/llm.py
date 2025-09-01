@@ -85,7 +85,7 @@ class GPT4Client:
 
 
 class MissionDecomp:
-    EXPECTED_KEYS = ["reasoning", "tasks", "dependency_reasoning", "dependency_graph"]
+    EXPECTED_KEYS = ["reasoning", "tasks", "dependency_reasoning", "dependency_graph", "mission_answer"]
 
     def __init__(self, team_specification: str, llm_type="gpt5"):
         self._msg_history = []
@@ -192,6 +192,8 @@ class MissionDecomp:
                     nx.all_simple_paths(graph, source="start", target=leaf_node)
                 )
             except:
+                # TODO log warning 
+                return []
                 raise ValueError(
                     f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
                 )
@@ -200,11 +202,13 @@ class MissionDecomp:
                 raise ValueError(f"No mission trace for: {mission_trace}")
 
             if len(mission_trace[0]) <= 1:
-                raise ValueError(
-                    f"mission trace must be longer than 1. Have trace: {mission_trace[0]}. Leafs: {leaf_nodes}. All nodes: {all_nodes}"
-                )
-
-            trace = self._parse_task_trace(mission_trace[0][1:])
+                # TODO add warning
+                # raise ValueError(
+                #     f"mission trace must be longer than 1. Have trace: {mission_trace[0]}. Leafs: {leaf_nodes}. All nodes: {all_nodes}"
+                # )
+                pass
+            else:
+                trace = self._parse_task_trace(mission_trace[0][1:])
 
             all_traces.append(trace)
 
