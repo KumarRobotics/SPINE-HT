@@ -198,10 +198,7 @@ class MissionDecomp:
                     f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
                 )
 
-            if not len(mission_trace):
-                raise ValueError(f"No mission trace for: {mission_trace}")
-
-            if len(mission_trace[0]) <= 1:
+            if len(mission_trace) == 0 or len(mission_trace[0]) <= 1:
                 # TODO add warning
                 # raise ValueError(
                 #     f"mission trace must be longer than 1. Have trace: {mission_trace[0]}. Leafs: {leaf_nodes}. All nodes: {all_nodes}"
@@ -209,8 +206,7 @@ class MissionDecomp:
                 pass
             else:
                 trace = self._parse_task_trace(mission_trace[0][1:])
-
-            all_traces.append(trace)
+                all_traces.append(trace)
 
         return all_traces
 
