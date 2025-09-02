@@ -41,9 +41,8 @@ GPT4_PROMPT_TEMPLATE = """
 
 ## Robot team specification
 - {team_specification}
-- Available robot APIs are detailed below; only specify robot type in task calls if required by mission constraints.
-- Example: Only specify a particular robot type if only that type can fulfill the task.
- - **When multiple robots are available, distribute them across distinct mission-critical regions, and account for their unique abilities, if relevant**
+- Available robot APIs are detailed below; only specify robot type in task calls if required by mission requirements.
+- Pay attention to environment semantics and robot capabilities when tasking heterogenous robots. Some robots may be better at traversing difficult terrain, have more payload capacity, etc.
 
 
 ## Robot APIs

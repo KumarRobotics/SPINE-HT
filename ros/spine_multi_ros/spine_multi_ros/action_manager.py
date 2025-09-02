@@ -327,10 +327,10 @@ class ActionManager:
             )
             return False
 
-        vlm_success = vlm_result["success"]
+        vlm_success = vlm_result["success"][0]
 
         if vlm_success:
-            vlm_answer = vlm_result["answer"]
+            vlm_answer = vlm_result["answer"][0]
             self._prompt_former.update(
                 attribute_updates=[{"name": target_object, "description": vlm_answer}]
             )

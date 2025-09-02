@@ -184,7 +184,6 @@ def parse_graph(
         if not isinstance(edge, list):
             edge = [e.strip() for e in edge.split(",")]
 
-
         c1 = G.nodes[edge[0]]["coords"]
         c2 = G.nodes[edge[1]]["coords"]
         # print(f"edge: {edge}, c1, c2: {c1}, {c2}")
@@ -276,7 +275,13 @@ class GraphHandler:
             node_type = self.graph.nodes[node]["type"]
             coords = self.graph.nodes[node]["coords"]
             coords = f"[{coords[0]:0.1f}, {coords[1]:0.1f}]"  # TODO best way?
-            graph_dict[f"{node_type}s"].append({"name": node, "coords": coords})
+
+            attrs = {"name": node, "coords": coords}
+
+            if "description" in self.graph.nodes[node]:
+                attrs["description"] = self.graph.nodes[node]["description"]
+
+            graph_dict[f"{node_type}s"].append(attrs)
 
         # TODO need to check this change b/c it will cause
         # hard to catch issues on the llm planning if wrong
@@ -582,8 +587,11 @@ class GraphHandler:
         out += region_edges
         return out
 
+
 if __name__ == "__main__":
-    g = GraphHandler("/home/zac/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json")
+    g = GraphHandler(
+        "/home/zac/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/perch.json"
+    )
 
     s = g.to_json_str()
     d = json.loads(s)

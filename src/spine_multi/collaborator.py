@@ -84,6 +84,15 @@ class AllocationResult:
     mission_answer: str
 
 
+def get_capability_set(robot_name, robot_type):
+    if robot_type == "jackal":
+        return JACKAL_CAPABILITIES + [robot_name]
+    elif robot_type == "husky":
+        return HUSKY_CAPABILITIES + [robot_name]
+    else:
+        raise ValueError(f"{robot_type} not supported")
+
+
 class Collaborator:
     def __init__(
         self,

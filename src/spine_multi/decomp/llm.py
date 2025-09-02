@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend0
+
+matplotlib.use("Agg")  # Use non-interactive backend0
 import matplotlib.pyplot as plt
 import networkx as nx
 from openai import OpenAI
@@ -64,7 +65,7 @@ class GPT4Client:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=msg,
-                temperature=0.01,  # was 1
+                temperature=0.001,  # was 1
                 max_tokens=2048,
                 top_p=1,
                 frequency_penalty=0,
@@ -85,7 +86,13 @@ class GPT4Client:
 
 
 class MissionDecomp:
-    EXPECTED_KEYS = ["reasoning", "tasks", "dependency_reasoning", "dependency_graph", "mission_answer"]
+    EXPECTED_KEYS = [
+        "reasoning",
+        "tasks",
+        "dependency_reasoning",
+        "dependency_graph",
+        "mission_answer",
+    ]
 
     def __init__(self, team_specification: str, llm_type="gpt5"):
         self._msg_history = []
@@ -192,7 +199,7 @@ class MissionDecomp:
                     nx.all_simple_paths(graph, source="start", target=leaf_node)
                 )
             except:
-                # TODO log warning 
+                # TODO log warning
                 return []
                 raise ValueError(
                     f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
