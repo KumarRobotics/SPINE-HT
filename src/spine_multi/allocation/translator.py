@@ -16,6 +16,7 @@ FUNCTION_MAPPINGS = {
     "ugv_map_region": FunctionDescription('map_region', 1), 
     "ugv_explore_to": FunctionDescription('explore_to', 2),
     "ugv_navigate": FunctionDescription("goto", 1),
+    "explore_to_node": FunctionDescription("explore_to_node", 1)
 }
 # fmt: on
 

@@ -35,6 +35,12 @@ def ugv_explore_to(
     Note that you may not reach the coordinate exactly."""
 
 
+def explore_to_node(region_node: str, ugv_type=["spot", "robot_name"]) -> str:
+    """Attempt to find a path to `region_node` if none exists.
+
+    ONLY call this if there is no existing path"""
+
+
 def uav_fly_to(region_node: str) -> bool:
     """Fly to a node in the graph."""
 

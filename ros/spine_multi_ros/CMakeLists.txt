@@ -36,6 +36,7 @@ install(PROGRAMS
   scripts/vlm_service_translator.py
   scripts/label_service_translator.py
   scripts/jackal_autonomy_server.py
+  scripts/spot_autonomy_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

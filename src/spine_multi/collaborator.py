@@ -34,6 +34,7 @@ HUSKY_CAPABILITIES = [
     "ugv_explore_to",
     "husky",
 ]
+SPOT_CAPABILITIES = ["ugv_inspect", "ugv_navigate", "ugv_map_region", "explore_to_node", "spot"]
 FALCON_4_CAPABILITIES = ["uav_goto", "uav_map", "uav_explore"]
 
 
@@ -89,6 +90,8 @@ def get_capability_set(robot_name, robot_type):
         return JACKAL_CAPABILITIES + [robot_name]
     elif robot_type == "husky":
         return HUSKY_CAPABILITIES + [robot_name]
+    elif robot_type == "spot":
+        return SPOT_CAPABILITIES + [robot_name]
     else:
         raise ValueError(f"{robot_type} not supported")
 
@@ -173,7 +176,7 @@ class Collaborator:
             traces = self._mission_decomp.get_mission_traces(mission_graph)
 
             if len(traces) == 0 and out["mission_answer"] == "":
-                self._logger(f"WARNING No traces parsed. \nLLM output is {out}")
+                self._logger.info(f"WARNING No traces parsed. \nLLM output is {out}")
 
             llm_task_feedback = []
             for trace in itertools.chain.from_iterable(traces):

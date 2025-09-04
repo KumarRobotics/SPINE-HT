@@ -58,3 +58,6 @@ class MultiRobotGraphHandler:
 
     def get_region_nodes_and_locs(self) -> Tuple[np.ndarray, np.ndarray]:
         return self._graph.get_region_nodes_and_locs()
+
+    def get_closest_reachable_node(self, node: str) -> str:
+        return self._graph.get_closest_reachable_node(node)

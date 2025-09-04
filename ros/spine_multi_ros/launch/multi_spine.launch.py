@@ -14,28 +14,19 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 
 def generate_launch_description():
-    declare_run_bridge = DeclareLaunchArgument(
-        "use_bridge", default_value="False", description="Run ros bridge"
-    )
     declare_run_mocha = DeclareLaunchArgument(
         "use_mocha", default_value="True", description="Run mocha"
     )
 
-    run_bridge = LaunchConfiguration("use_bridge")
+    declare_config = DeclareLaunchArgument(
+        "robot_config", default_value="/home/zac/projects/dcist/dcist_ws/src/ros/spine_multi_ros/config/spine_configs/spine_multi.yaml", description="config"
+    )
+
     run_mocha = LaunchConfiguration("use_mocha")
+    robot_config = LaunchConfiguration("robot_config")
 
     pkg_spine_multi = get_package_share_directory("spine_multi_ros")
-    robot_config = PathJoinSubstitution([pkg_spine_multi, "config", "spine_multi.yaml"])
-
-    callisto_bridge_config = PathJoinSubstitution(
-        [pkg_spine_multi, "config", "spine_bridge_callisto.yaml"]
-    )
-    io_bridge_config = PathJoinSubstitution(
-        [pkg_spine_multi, "config", "spine_bridge_io.yaml"]
-    )
-    bridge_config = PathJoinSubstitution(
-        [pkg_spine_multi, "config", "spine_bridge.yaml"]
-    )
+    # robot_config = PathJoinSubstitution([pkg_spine_multi, "config", "spine_multi.yaml"])
 
     pkg_mocha = get_package_share_directory("mocha_launch")
     mocha_launch_path = PathJoinSubstitution(
@@ -48,8 +39,8 @@ def generate_launch_description():
     )
 
     ld = [
-        declare_run_bridge,
         declare_run_mocha,
+        declare_config,
         mocha_launch,
         Node(
             package="spine_multi_ros",

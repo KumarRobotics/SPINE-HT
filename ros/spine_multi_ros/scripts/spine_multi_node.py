@@ -25,6 +25,7 @@ from spine_multi.collaborator import (
     RobotDescription,
     RobotConfig,
     BehaviorResult,
+    get_capability_set
 )
 from spine_multi.planner_logging import get_logger
 from spine_multi.spine.class_llm import ClassLLM
@@ -65,8 +66,8 @@ class SPINEMultiNode(Node):
             robots.append(
                 RobotDescription(
                     id=robot_config.name,
-                    type="jackal",
-                    capabilities=JACKAL_CAPABILITIES + [robot_config.name],
+                    type=robot_config.type,
+                    capabilities=get_capability_set(robot_name=robot_config.name, robot_type=robot_config.type),
                     location=np.array([]),
                 )
             )

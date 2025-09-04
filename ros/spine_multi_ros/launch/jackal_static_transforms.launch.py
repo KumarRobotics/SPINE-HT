@@ -17,7 +17,7 @@ def generate_launch_description():
     )
 
     start_y_arg = DeclareLaunchArgument(
-        "start_y", default_value="0", description="Name for the robot"
+        "start_y", default_value="0.0", description="Name for the robot"
     )
 
     robot_map_frame = LaunchConfiguration("robot_map_frame")

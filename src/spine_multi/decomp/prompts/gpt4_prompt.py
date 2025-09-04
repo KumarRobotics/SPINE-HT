@@ -49,12 +49,14 @@ GPT4_PROMPT_TEMPLATE = """
 - Each robot function is defined below. Function signatures and docstrings specify expected parameters and return fields. 
 - ONLY specify robot type if it is vital (e.g., only one robot can fulfill a task).
 - For APIs with the `roobt_name` option, you may specifiy a particular robot ONLY if there is good reason to do so.
+- you INSPECT objects and MAP regions
 
 
 
 ```python
 {planning_api}
 ```
+
 
 ## Semantic Graph
 - Provided as a JSON object with fields: objects, regions, object_connections, region_connections, and init_location. Example:
@@ -94,6 +96,7 @@ GPT4_PROMPT_TEMPLATE = """
 ## Sub-categories
 - If the semantic graph is empty and a UAV is available, prioritize initial UAV-led exploration. Otherwise, indicate waiting for additional information.
 - Ignore malformed inputs; assume all provided data is in the required format.
+
 
 """
 

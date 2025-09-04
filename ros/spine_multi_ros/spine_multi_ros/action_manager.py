@@ -64,6 +64,7 @@ class ActionManager:
             "explore_region": lambda x: self._build_goto_region_request(x[0]),
             "map_region": self._build_map_region_requests,
             "set_labels": self._build_set_label_request,
+            "explore_to_node": self._build_attempt_navigate_requests,
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
@@ -77,6 +78,7 @@ class ActionManager:
             "explore_region": self._parse_goto_region_results,
             "map_region": self._parse_map_region_results,
             "set_labels": self._parse_set_label_results,
+            "explore_to_node": self._parse_attempt_navigate_results,
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
@@ -146,6 +148,21 @@ class ActionManager:
         metadata.update(mapping_metadata)
         return request_sequence, metadata
 
+    def _build_attempt_navigate_requests(
+        self,
+        goal_node: str,
+    ):
+        closest_node, _ = self._graph.get_closest_reachable_node(goal_node)
+        nav_request, metadata = self._build_goto_region_request(
+            goal_region=closest_node
+        )
+        goal_coords = self._graph.get_node_coord(goal_node)
+        explore_msg = self._msg_handler.build_navigate_msg_dict(
+            goal_coords[0], goal_coords[1], 0, True
+        )
+        metadata["exploration_node_target"] = goal_node
+        return nav_request + [explore_msg], metadata
+
     def _build_map_request(self, goal_region: str):
         return [
             {
@@ -156,6 +173,21 @@ class ActionManager:
 
     def _parse_set_label_results(self, results: List[dict], metadata: dict) -> bool:
         return True  # TODO
+
+    def _parse_attempt_navigate_results(self, results: List[dict], metadata) -> bool:
+        nav_results = results[:-1]
+        explore_results = results[-1]
+        nav_success = self._parse_goto_region_results(
+            results=nav_results, metadata=metadata
+        )
+        explore_target = metadata["exploration_node_target"]
+        neighbor = metadata["region_node"]
+
+        explore_success = explore_results["success"][0]
+        if explore_success:
+            self._add_new_neighbors(node_id=explore_target, new_neighbors=[neighbor])
+
+        return explore_success
 
     def _parse_map_region_results(self, results: List[dict], metadata: dict) -> bool:
         if "target_nodes" not in metadata or "region_node" not in metadata:
@@ -193,7 +225,7 @@ class ActionManager:
     def _clean_str(self, in_str) -> str:
         return in_str.replace("'", "").replace('"', "")
 
-    def _add_new_neighbors(self, node_id, new_neighbors):
+    def _add_new_neighbors(self, node_id: str, new_neighbors: List[str]):
         new_neighbors = [neighbor for neighbor in new_neighbors if neighbor != node_id]
 
         if len(new_neighbors) == 0:

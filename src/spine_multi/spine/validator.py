@@ -4,6 +4,7 @@ from logging import Logger
 from typing import Tuple
 
 import numpy as np
+
 import spine_multi.decomp.planning_api as planning_api
 from spine_multi.spine.mapping.graph_util import GraphHandler
 
@@ -13,7 +14,9 @@ VALID_ACTIONS_MULTI_SUGGEST = [
     for name, obj in inspect.getmembers(planning_api, inspect.isfunction)
     if obj.__module__ == planning_api.__name__
 ]
-VALID_ACTIONS_MULTI = set(["goto", "map_region", "inspect", "extend_map", "explore_to"])
+VALID_ACTIONS_MULTI = set(
+    ["goto", "map_region", "inspect", "extend_map", "explore_to", "explore_to_node"]
+)
 
 ValidPlanFeedback = namedtuple("ValidPlanFeedback", ["success", "message"])
 VALID_ACTIONS = set(
@@ -136,8 +139,16 @@ class Validator:
 
             split_args = arg.split(",")
 
+            if function == "explore_to_node" and graph.path_exists_from_current_loc(
+                first_arg
+            ):
+                feedback = f"Path exists to {arg[0]}. Do not use `explore_to_node.` Try calling `ugv_navigate` instead."
+
             if function == "map_region" and len(split_args) > 1:
-                feedback = f"map_region takes one region node as argument. Try calling map_region({split_args[0]})"
+                feedback = (
+                    f"map_region takes one region node as argument. Try calling map_region({split_args[0]})"
+                    f" or explore_to_node({split_args[0]}) if you have a spot"
+                )
                 return [], ValidPlanFeedback(False, feedback)
 
             # is valid function
@@ -178,7 +189,10 @@ class Validator:
                     f" are {closest_reachable_node} and {target_node}. "
                 )
 
-                feedback += f"Try the plan: map_region({closest_reachable_node}) to find a connection"
+                feedback += (
+                    f"Try one of the following plans to find a connection: (1) explore_to_node({target_node}) if you have a spot "
+                    f"or (2) map_region({closest_reachable_node}) if you only have jackals or huskys"
+                )
 
                 # NOTE original feedback below
                 # feedback += (
