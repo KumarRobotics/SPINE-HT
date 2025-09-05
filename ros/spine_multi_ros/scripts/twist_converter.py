@@ -12,8 +12,14 @@ class TwistConverter(Node):
         # Get namespace parameter
         self.declare_parameter("namespace", "warthog1")
         self.declare_parameter("publish_stamped", True)
+        self.declare_parameter("flip_x", False)
+        self.declare_parameter("scale_x", 1.0)
+        self.declare_parameter("scale_z", 1.0)
 
         namespace = self.get_parameter("namespace").get_parameter_value().string_value
+        self._flip_x = self.get_parameter("flip_x").get_parameter_value().bool_value
+        self._scale_x = self.get_parameter("scale_x").get_parameter_value().double_value
+        self._scale_z = self.get_parameter("scale_z").get_parameter_value().double_value
         self._publish_stamped = self.get_parameter("publish_stamped").get_parameter_value().bool_value
 
 
@@ -38,9 +44,15 @@ class TwistConverter(Node):
     def twist_stamped_callback(self, msg):
 
         if self._publish_stamped:
-            self.publisher.publish(msg)
-        else:
+            if self._flip_x:
+                msg.twist.linear.x *= -1
 
+            msg.twist.linear.x *= self._scale_x
+            msg.twist.angular.z *= self._scale_z
+
+            self.publisher.publish(msg)
+
+        else:
         # Extract the twist part from TwistStamped
             twist_msg = Twist()
             twist_msg.linear = msg.twist.linear

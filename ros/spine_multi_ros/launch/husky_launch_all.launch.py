@@ -38,13 +38,13 @@ def generate_launch_description():
         "detection_confidence", default_value="0.5", description="detection confidence"
     )
     declare_use_mocha_arg = DeclareLaunchArgument(
-        "use_mocha", default_value="false", description="use mocha"
+        "use_mocha", default_value="true", description="use mocha"
     )
     declare_start_y_arg = DeclareLaunchArgument(
         "start_y", default_value="0.0", description="starting y"
     )
-    declare_ground_ground_z_threshold_arg = DeclareLaunchArgument(
-        "ground_grid_z_threshold", default_value="2.5", description="z threshold"
+    declare_use_vision_arg = DeclareLaunchArgument(
+        "use_vision", default_value="false", description="starting y"
     )
 
 
@@ -58,8 +58,7 @@ def generate_launch_description():
     detection_confidence = LaunchConfiguration("detection_confidence")
     subscription_prefix = LaunchConfiguration("subscription_prefix")
     start_y = LaunchConfiguration("start_y")
-    ground_grid_z_threshold = LaunchConfiguration("ground_grid_z_threshold")
- 
+    use_vision = LaunchConfiguration("use_vision")
 
     # get pkgs and configs
     pkg_spine_multi = get_package_share_directory("spine_multi_ros")
@@ -67,7 +66,7 @@ def generate_launch_description():
         [pkg_spine_multi, "launch", "navigation_launch.py"]
     )
 
-    nav2_config_name = ["nav2_jackal.yaml"]
+    nav2_config_name = ["nav2_husky.yaml"]
 
     nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", nav2_config_name])
     jackal_static_transforms = PathJoinSubstitution(
@@ -89,13 +88,6 @@ def generate_launch_description():
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
-            IncludeLaunchDescription( # TODO should this be namespaced too ?
-                launch_groundgrid,
-                launch_arguments=[
-                    ("namespace", namespace),
-                    ("z_threshold", ground_grid_z_threshold)
-                ],
-            ),
             #PushRosNamespace(LaunchConfiguration("namespace")),
             IncludeLaunchDescription(
                 jackal_static_transforms,
@@ -123,8 +115,29 @@ def generate_launch_description():
                     ("cmd_vel_topic", "platform/cmd_vel"),
                 ],
             ),
+            Node(
+                package="safety_controller",
+                executable="safety_controller",
+                name="safety_controller",
+                remappings=[
+                    ("joy_teleop/joy", "/a200_0000/joy_teleop/joy"),
+                    ("autonomous/cmd_vel", "autonomous/cmd_vel"),
+                     ("auto_mode/cmd_vel", "/a200_0000/auto_mode/cmd_vel"),
+                    
+                ]
+            ),
+            Node(
+                package="spine_multi_ros",  # Replace with your package name
+                executable="twist_converter.py",
+                name="twist_converter",
+                remappings=[("cmd_vel", "/autonomous/cmd_vel")],  # Remap output
+                parameters=[{"flip_x": True},
+                            {"scale_x", 7.0},
+                            {"scale_z", 7.0}], 
+            ),
             IncludeLaunchDescription(
                 launch_vision,
+                condition=IfCondition(use_vision),
                 launch_arguments=[
                     ("input_rgb_topic", "/zed/zed_node/left/image_rect_color"),
                     ("input_depth_topic", "/zed/zed_node/depth/depth_registered"),
@@ -133,27 +146,11 @@ def generate_launch_description():
                 ],
             ),
             Node(
-                package="spine_multi_ros",  # Replace with your package name
-                executable="twist_converter.py",
-                name="twist_converter",
-                remappings=[("cmd_vel", "autonomous/cmd_vel")],  # Remap output
-                parameters=[{"scale_x": 5.0},
-                            {"scale_z": 5.0}]
-            ),
-            Node(
-                package="safety_controller",
-                executable="safety_controller",
-                name="safety_controller",
-                remappings=[
-                    ("joy_teleop/joy", [robot_name, "/joy_teleop/joy"]),
-                    ("auto_mode/cmd_vel", [robot_name, "/auto_mode/cmd_vel"])
-                ]
-            ),
-            Node(
                 package="spine_multi_ros",
                 executable="jackal_autonomy_server.py",
                 name="jackal_autonomy_server",
-                parameters=[{"subscription_prefix": subscription_prefix}]
+                parameters=[{"subscription_prefix": subscription_prefix,
+                            "use_vision": use_vision}]
             )
         ],
     )
@@ -167,21 +164,18 @@ def generate_launch_description():
         declare_detection_confidence_arg,
         declare_subscription_prefix_arg,
         declare_start_y_arg,
-        declare_ground_ground_z_threshold_arg,
         namespaced_group,
     ]
 
-    # TODO clean up
-
     record_launch_path = PathJoinSubstitution(
-        [pkg_spine_multi, "launch", "record_jackal.launch.py"]
+        [pkg_spine_multi, "launch", "record_husky.launch.py"]
     )
     bag_name = get_log_dir()
     launch_record = IncludeLaunchDescription(
         record_launch_path,
         condition=IfCondition(record),
         launch_arguments=[
-            ("namespace", namespace), 
+            ("namespace", "triton"), 
             ("output_bag", bag_name)
         ]
     )

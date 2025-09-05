@@ -69,7 +69,8 @@ class JackalAutonomyManager(Node):
                 ("subscription_prefix", ""),
                 ("label_service", "/detector/set_labels"),
                 ("vlm_service", "vlm_node/query_scene"),
-                ("costmap_topic", "local_costmap/costmap")
+                ("costmap_topic", "local_costmap/costmap"),
+                ("use_vision", True)
             ],
         )
 
@@ -86,6 +87,7 @@ class JackalAutonomyManager(Node):
         costmap_topic = (
             self.get_parameter("costmap_topic").get_parameter_value().string_value
         )
+        use_vision = self.get_parameter("use_vision").get_parameter_value().bool_value
 
         self._parser = ListDictParser()
 
@@ -145,24 +147,25 @@ class JackalAutonomyManager(Node):
 
         self._log_info("created pub / sub")
 
-        self._set_labels_component = LabelServiceTranslator(
-            parent_node=self,
-            label_service=set_label_client_name,
-        )
+        self._use_vision = use_vision
+        if self._use_vision:
+            self._set_labels_component = LabelServiceTranslator(
+                parent_node=self,
+                label_service=set_label_client_name,
+            )
+            self._log_info("set label init")
+            # vlm_query
+            self._vlm_component = VLMServiceComponent(
+                parent_node=self,
+                vlm_service=vlm_service_name,
+            )
+            self._log_info(f"VLM init")
 
-        self._log_info("set label init")
 
         # navigation
         self._nav_component = JackalNavigationComponent(parent_node=self)
 
-        # vlm_query
-        self._vlm_component = VLMServiceComponent(
-            parent_node=self,
-            vlm_service=vlm_service_name,
-        )
-
         self._log_info("init")
-
 
     
     def _graph_cbk(self, msg: String):
@@ -276,11 +279,15 @@ class JackalAutonomyManager(Node):
 
                 if behavior == "set_labels":
                     self._log_info(f"calling set labels")
-                    result = self._set_labels_component.set_labels(
-                        task["labels"][0], msg.idx
-                    )
+                    if self._use_vision:
+                        result = self._set_labels_component.set_labels(
+                            task["labels"][0], msg.idx
+                        )
 
-                    self._log_info(f"got labels call result : {result}")
+                        self._log_info(f"got labels call result : {result}")
+                    else:
+                        result = {"behavior": ("set_labels", "str"), "success": (True, "bool")}
+
                     outcomes.append(result)
 
                     if not result["success"]:
@@ -290,8 +297,16 @@ class JackalAutonomyManager(Node):
                     query = task["query"][0]
                     self._log_info(f"calling query_vlm: {query}")
 
-                    result = self._vlm_component.query_vlm(query, msg.idx)
-                    self._log_info(f"got response: {result}")
+                    if self._use_vision:
+                        result = self._vlm_component.query_vlm(query, msg.idx)
+                        self._log_info(f"got response: {result}")
+                    else:
+                        result = {
+                            "behavior": ("query_vlm", "str"),
+                            "success": (success, "bool"),
+                            "answer": ("VLM unavailable on this robot", "str"),
+                        }
+
                     outcomes.append(result)
 
                     if not result["success"]:

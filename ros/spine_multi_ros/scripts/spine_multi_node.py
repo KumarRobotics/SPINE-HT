@@ -89,7 +89,7 @@ class SPINEMultiNode(Node):
             team_spec_language=team_specification,
             init_location=init_location,
             logger=self._logger,
-            llm_type=self._llm_type
+            llm_type=self._llm_type,
         )
         self._planning_limit = 5
         self._class_llm = ClassLLM()
@@ -116,6 +116,12 @@ class SPINEMultiNode(Node):
 
         self.mission_srv = self.create_service(
             Mission, "/spine_multi/mission", self._mission_cbk
+        )
+
+        self._log_info(
+            f"SPINE multi initialized with llm: {self._llm_type}\n"
+            f"Robots: {robot_config}\n"
+            f"Team spec: {team_specification}"
         )
 
     def _graph_pub_cbk(self):
