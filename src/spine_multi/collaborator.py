@@ -25,6 +25,7 @@ JACKAL_CAPABILITIES = [
     "ugv_inspect",
     "ugv_navigate",
     "ugv_explore_to",
+    "explore_to_node",
     "jackal",
 ]
 HUSKY_CAPABILITIES = [
@@ -32,9 +33,16 @@ HUSKY_CAPABILITIES = [
     "ugv_inspect",
     "ugv_navigate",
     "ugv_explore_to",
+    "explore_to_node",
     "husky",
 ]
-SPOT_CAPABILITIES = ["ugv_inspect", "ugv_navigate", "ugv_map_region", "explore_to_node", "spot"]
+SPOT_CAPABILITIES = [
+    "ugv_inspect",
+    "ugv_navigate",
+    "ugv_map_region",
+    "explore_to_node",
+    "spot",
+]
 FALCON_4_CAPABILITIES = ["uav_goto", "uav_map", "uav_explore"]
 
 
@@ -273,9 +281,18 @@ class Collaborator:
         log += f"Specification:\n\t{result.specification}\n\n"
         log += f"Robots:\n\t{result.team}\n\n"
         log += self._mission_decomp.output_log(result.decomposition_log)
-        log += f"mission traces:\n"
+        log += f"mission traces (test):\n"
         for trace in result.mission_traces:
-            log += f"\t{break_long_str(str(trace))}\n"
+            for task in trace:
+                log += f"\t{break_long_str(str(task))}\n\n"
+            # trace = trace.replace("TaskDescription", "\n\nTaskDescription")
+
+        # log += f"mission traces:\n"
+        # for trace in result.mission_traces:
+        #     # for task in trace:
+        #     #     log += f"\n{break_long_str(str(task))}"
+        #     # trace = trace.replace("TaskDescription", "\n\nTaskDescription")
+        #     log += f"\t{break_long_str(str(trace))}\n"
         log += "\n"
         log += f"assignment set:\n"
         for assignment in result.assignment_set:

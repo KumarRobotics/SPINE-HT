@@ -146,8 +146,7 @@ class Validator:
 
             if function == "map_region" and len(split_args) > 1:
                 feedback = (
-                    f"map_region takes one region node as argument. Try calling map_region({split_args[0]})"
-                    f" or explore_to_node({split_args[0]}) if you have a spot"
+                    f"map_region takes one region node as argument. Try calling explore_to_node({split_args[0]})"
                 )
                 return [], ValidPlanFeedback(False, feedback)
 
@@ -190,8 +189,7 @@ class Validator:
                 )
 
                 feedback += (
-                    f"Try one of the following plans to find a connection: (1) explore_to_node({target_node}) if you have a spot "
-                    f"or (2) map_region({closest_reachable_node}) if you only have jackals or huskys"
+                    f"Try calling explore_to_node({target_node}) to find a path"
                 )
 
                 # NOTE original feedback below

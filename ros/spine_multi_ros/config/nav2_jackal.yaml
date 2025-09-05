@@ -298,8 +298,8 @@ global_costmap:
       rolling_window: True
       resolution: 0.5
 
-      width: 100          # 20m at 0.06 resolution
-      height: 100         # 20m at 0.06 resolution  
+      width: 175          # 20m at 0.06 resolution
+      height: 175         # 20m at 0.06 resolution  
 
       track_unknown_space: true
       always_send_full_costmap: true

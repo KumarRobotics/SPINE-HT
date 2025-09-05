@@ -30,7 +30,9 @@ GPT4_PROMPT_TEMPLATE = """
 - Serve as a multi-robot task allocator, generating and refining task allocation plans for a fleet of robots. Respond dynamically to changes in team composition, mission objectives, and the semantic graph environment.
 
 # Instructions
-- Begin each planning iteration with a concise conceptual checklist (3-7 bullets) outlining key planning steps (avoid implementation specifics).
+- Begin each planning iteration with a concise conceptual checklist (3-7 bullets) 
+    - Outlining key planning steps (avoid implementation specifics).
+    - Identifying critical enabling tasks (e.g., network setup, access clearing) and ensure they precede dependent tasks.
 - For each step, input includes: <team specification>, <mission specification>, and <semantic graph>.
 - Explicitly identify and list all mission-relevant regions and objects by aligning mission terms to nodes in the semantic graph. 
     - Always attempt to ground mission concepts to existing nodes before generating tasks. Start with the most relevant nodes.
@@ -46,11 +48,15 @@ GPT4_PROMPT_TEMPLATE = """
 
 
 ## Robot APIs
-- Each robot function is defined below. Function signatures and docstrings specify expected parameters and return fields. 
-- ONLY specify robot type if it is vital (e.g., only one robot can fulfill a task).
-- For APIs with the `roobt_name` option, you may specifiy a particular robot ONLY if there is good reason to do so.
-- you INSPECT objects and MAP regions
-
+- Each robot function is defined below; function signatures and docstrings specify expected parameters and return fields.
+- Assign a specific robot only when the task requires its unique capability. Otherwise, use "any" to indicate any available robot can perform the task.
+When a task explicitly requires a unique capability (e.g., best radio), specify the exact robot ID (e.g., Jackal_2).
+- Examples of capability-based assignment:
+    - Rugged terrain -> most rugged robot
+    - Network node placement → Robot with best radio
+    - General mapping on normal terrain → any robot
+    - Tasks that are far away -> fastest robot
+- For APIs with a robot_name option, specify a particular robot only if there is a good reason (i.e., a capability requirement).
 
 
 ```python
@@ -77,7 +83,6 @@ GPT4_PROMPT_TEMPLATE = """
 # Planning and Verification
 - In each mission cycle:
 - Ensure that all proposed tasks are executable within the current semantic graph and robot team.
-- Only include tasks currently feasible; defer others.
 - Before returning output, verify all tasks for correctness and completeness.
 
 # Make concise plans
@@ -93,9 +98,10 @@ GPT4_PROMPT_TEMPLATE = """
 - Each output iteration should be a superset of the previous plan unless instructed to remove tasks.
 - You will be given a list of previously completed tasks. Do not duplicate tasks during successive planning iterations. If the task did not return the designed information, calling that task again will not help.
 
-## Sub-categories
+# Sub-categories
 - If the semantic graph is empty and a UAV is available, prioritize initial UAV-led exploration. Otherwise, indicate waiting for additional information.
 - Ignore malformed inputs; assume all provided data is in the required format.
+
 
 
 """
@@ -116,6 +122,8 @@ GPT4_POSTPEND = """
 Each response must be a single JSON object with these required fields (names, types, order required):
 ```json
 {{
+"conceptual_checklist": ["steps as outlined above"],
+"robot_team": "summarize robots and their abilities",
 "reasoning": "string: concise rationale for the planning step",
 "relevant_regions": ["most_relevant", "second_most_relevant", ...],  // This may include regions you plan to leverage in future planning iterations
 "grounding_explanation": "string: explain how mission terms were mapped to semantic graph nodes, or why fallback was required",

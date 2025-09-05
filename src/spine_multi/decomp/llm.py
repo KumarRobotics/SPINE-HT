@@ -15,6 +15,9 @@ from spine_multi.decomp.util import _parse_function_call
 from spine_multi.planner_logging import break_long_str
 
 
+SEED = 10
+
+
 class GPT5Client:
     def __init__(self, msg_history: List[dict], expected_keys: List[str]):
         self.client = OpenAI()
@@ -65,12 +68,13 @@ class GPT4Client:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=msg,
-                temperature=0.001,  # was 1
+                temperature=0.0,
                 max_tokens=2048,
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0,
                 response_format={"type": "json_object"},
+                seed=SEED,
             )
             top_msg = response.choices[0].message.content
             top_msg_dict = json.loads(top_msg)
@@ -81,7 +85,8 @@ class GPT4Client:
             self._msg_history.append({"role": "assistant", "content": top_msg})
 
             return top_msg_dict
-        except:
+        except Exception as ex:
+            print(ex)
             return {}
 
 
@@ -109,7 +114,9 @@ class MissionDecomp:
         self._mission_specification = ""
         self._scene_graph = ""
         self._init_location = ""
-        self._base_prompt = build_prompt(team_specification=team_specification)
+        self._base_prompt = build_prompt(
+            team_specification=team_specification, llm=self._llm_type
+        )
 
     def get_mission_specification(self) -> str:
         return self._mission_specification
