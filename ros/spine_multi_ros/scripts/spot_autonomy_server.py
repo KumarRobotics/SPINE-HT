@@ -471,7 +471,9 @@ class SpotNavigationComponent:
 
     def path_following_progress_feedback(self, current_point, goal_point):
         # total hack for spot tools
-        self._log_info(f"{current_point}: {goal_point}")
+        self._progress_idx += 1
+        if self._progress_idx % 500 == 0:
+            self._log_info(f"{current_point}: {goal_point}")
 
 
     def _log_info(self, msg: str) -> None:
@@ -524,6 +526,9 @@ class SpotNavigationComponent:
             timeout=timeout_sec,
             feedback = self,
             )
+
+        if check_yaw:
+            navigate_to_absolute_pose(self._spot_client, goal)
 
         current_pose = self._spot_client.get_pose()[:2].reshape(1, 2)
         success = np.linalg.norm(goal_np - current_pose) < self._goal_tol
