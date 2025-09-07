@@ -212,10 +212,10 @@ class MissionDecomp:
                 log_output += f"\nGot trace: {mission_trace} of len {len(mission_trace)} for leaf: {leaf_node}"
             except Exception as ex:
                 # TODO log warning
-                # return []
-                raise ValueError(
-                    f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
-                )
+                return []
+                # raise ValueError(
+                #     f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
+                # )
 
             if len(mission_trace) == 0 or len(mission_trace[0]) <= 1:
                 # TODO add warning
