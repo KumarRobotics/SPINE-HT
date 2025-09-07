@@ -143,6 +143,7 @@ class MissionDecomp:
         return self._llm_client.query_llm(msg)
 
     def _build_graph(self, tasks: List[str], deps) -> nx.DiGraph:
+        # TODO try fix
         graph = nx.DiGraph()
         graph.add_node("start")
         start_nodes = set()
@@ -159,6 +160,7 @@ class MissionDecomp:
 
         for source, target in cleaned_deps:
             graph.add_edge(source, target)
+            start_nodes.add(source)
             start_nodes.discard(target)
 
         for node in start_nodes:
@@ -200,14 +202,17 @@ class MissionDecomp:
         leaf_nodes = [n for n in graph.nodes if graph.out_degree(n) == 0]
         all_nodes = [n for n in graph.nodes]
         all_traces = []
+        log_output = f"leaf nodes: {leaf_nodes}. all nodes: {all_nodes}"
         for leaf_node in leaf_nodes:
             try:
                 mission_trace = list(
                     nx.all_simple_paths(graph, source="start", target=leaf_node)
                 )
-            except:
+
+                log_output += f"\nGot trace: {mission_trace} of len {len(mission_trace)} for leaf: {leaf_node}"
+            except Exception as ex:
                 # TODO log warning
-                return []
+                # return []
                 raise ValueError(
                     f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
                 )
@@ -222,7 +227,7 @@ class MissionDecomp:
                 trace = self._parse_task_trace(mission_trace[0][1:])
                 all_traces.append(trace)
 
-        return all_traces
+        return all_traces, log_output
 
     def give_updates(self, updates: str) -> None:
         self._msg_history.append({"role": "user", "content": updates})
@@ -268,17 +273,40 @@ class MissionDecomp:
 
 if __name__ == "__main__":
 
-    test_dir = Path(
-        "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data"
-    )
-    with open(test_dir / "graph_1.json") as f:
-        graph = json.load(f)
+    def build_graph(tasks, deps):
+        graph = nx.DiGraph()
+        graph.add_node("start")
+        start_nodes = set()
 
-    mission_decomp = MissionDecomp()
-    graph, out = mission_decomp.get_mission_graph(
-        "find the red house", scene_graph=str(graph)
-    )
-    mission_decomp.output_log(out)
-    mission_decomp.save_graph(graph)
+        cleaned_deps = []
+        for dep in deps:
+            dep = [d for d in dep if d != ""]
+            if len(dep) >= 2:
+                cleaned_deps.append(dep)
 
-    debug = 0
+        for task in tasks:
+            graph.add_node(task)
+            start_nodes.add(task)
+
+        for source, target in cleaned_deps:
+            graph.add_edge(source, target)
+            start_nodes.add(source)
+            start_nodes.discard(target)
+
+        for node in start_nodes:
+            graph.add_edge("start", node)
+
+        return graph
+
+    deps = [["ugv_map_region(region_node='region_1', ugv_type='spot')", "ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')"]]
+
+    tasks = ["ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')"]
+    # tasks = ["ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')", "ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')"]
+
+    build_graph(tasks, deps)
+
+
+
+
+
+

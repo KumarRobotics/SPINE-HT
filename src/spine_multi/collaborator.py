@@ -30,7 +30,6 @@ JACKAL_CAPABILITIES = [
 ]
 HUSKY_CAPABILITIES = [
     "ugv_map_region",
-    "ugv_inspect",
     "ugv_navigate",
     "ugv_explore_to_coord",
     "explore_to_node",
@@ -182,10 +181,10 @@ class Collaborator:
             mission_graph, out = self._mission_decomp.get_mission_graph()
             # self._logger.info(f"LLM provided graph: {mission_graph} with raw output {out}")
 
-            traces = self._mission_decomp.get_mission_traces(mission_graph)
+            traces, log_out = self._mission_decomp.get_mission_traces(mission_graph)
 
             if len(traces) == 0 and out["mission_answer"] == "":
-                self._logger.info(f"WARNING No traces parsed. \nLLM output is {out}")
+                self._logger.info(f"WARNING No traces parsed. \nLLM output is {out}\nmission graph: {mission_graph}\nlog: {log_out}")
 
             llm_task_feedback = []
             for trace in itertools.chain.from_iterable(traces):
