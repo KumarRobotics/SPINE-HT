@@ -280,8 +280,10 @@ class JackalAutonomyManager(Node):
                 if behavior == "set_labels":
                     self._log_info(f"calling set labels")
                     if self._use_vision:
+                        incoming_labels = task["labels"][0]
+                        labels = incoming_labels.replace("|", ",")
                         result = self._set_labels_component.set_labels(
-                            task["labels"][0], msg.idx
+                            labels, msg.idx
                         )
 
                         self._log_info(f"got labels call result : {result}")
@@ -313,8 +315,9 @@ class JackalAutonomyManager(Node):
                         break
 
                 if behavior == "map_region":
-                    current_location = task["current_location"][0]
-                    outcomes.append(self._try_add_edges(node_id=current_location))
+                    map_x = task["map_x"][0]
+                    map_y = task["map_y"][0]
+                    outcomes.append(self._try_add_edges(map_x, map_y))
 
 
             self._log_info(f"at end of call")
@@ -326,24 +329,25 @@ class JackalAutonomyManager(Node):
                 self._log_info(f"pub response: {result_msg.result}")
         
 
-    def _try_add_edges(self, node_id) -> dict:
-        coords, _ = self._graph.get_node_coords(node_id)
-
-        if isinstance(coords, list):
-            try:
-                coords = np.array([float(c) for c in coords])
-            except Exception as ex: 
-                self._log_info(f"ERROR [try add edge] when parsing coords {ex}")
-                return {}
+    def _try_add_edges(self, x: float, y: float) -> dict:
+        COORD_THRESH = 25
+        coords = np.array([x, y])
 
         region_info = self._graph.get_region_nodes_and_locs()
 
-        new_neighbors = self._frontier_extractor.get_missing_neighbors(node_id, coords)
+        new_neighbor_candidates = self._frontier_extractor.get_neighbors(coords)
+        new_neighbors = []
 
-        self._log_info(f"found new neighbors of node {node_id}: {new_neighbors}")
 
-        # remove self edges
-        new_neighbors = "|".join([neighbor for neighbor in new_neighbors if neighbor != node_id])
+        self._log_info(f"neighbor candidates: {new_neighbor_candidates}")
+
+        for neighbor in new_neighbor_candidates:
+            neighbor_coords, _ = self._graph.get_node_coords(neighbor)
+            self._log_info(f"Potential neighbor is { np.linalg.norm(neighbor_coords - coords):0.2f} away")
+            if np.linalg.norm(neighbor_coords - coords) < COORD_THRESH:
+                new_neighbors.append(neighbor)
+
+        new_neighbors = "|".join(new_neighbors)
 
         result = {"behavior": ("map_region", "str"),
                   "success": (True, "bool"),

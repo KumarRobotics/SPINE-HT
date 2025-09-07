@@ -5,6 +5,8 @@ from spine_multi.spine.mapping.graph_util import GraphHandler
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
+from rclpy.callback_groups import ReentrantCallbackGroup
+
 
 class NodeMarker:
     def __init__(self, node_marker: Marker, text_marker: Marker):
@@ -185,7 +187,9 @@ class GraphVisualizerComponent:
         self.marker_publisher = parent_node.create_publisher(Marker, topic_name, 10)
 
         # Create timer on parent node
-        self.timer = parent_node.create_timer(1.0 / publish_rate, self.timer_callback)
+        publish_group = ReentrantCallbackGroup()
+        self.timer = parent_node.create_timer(1.0 / publish_rate, self.timer_callback,
+                                              callback_group=publish_group)
 
         # Initialize graph viz
         self.graph_viz = GraphViz(graph, scale=scale, target_frame=target_frame)

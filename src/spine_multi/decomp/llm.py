@@ -99,7 +99,7 @@ class MissionDecomp:
         "mission_answer",
     ]
 
-    def __init__(self, team_specification: str, llm_type="gpt5"):
+    def __init__(self, team_specification: str, llm_type="gpt4"):
         self._msg_history = []
         if llm_type == "gpt5":
             self._llm_client = GPT5Client(
@@ -242,15 +242,18 @@ class MissionDecomp:
         return requirements
 
     def _parse_task_trace(self, trace: List[str]) -> List[TaskDescription]:
-        parsed_trace = []
-        for task in trace:
-            name, args, kwargs = _parse_function_call(task)
-            task_requirements = self._parse_task_requirements(name, args, kwargs)
-            parsed_trace.append(
-                TaskDescription(
-                    id=task, requirements=task_requirements, args=args, kwargs=kwargs
+        try:
+            parsed_trace = []
+            for task in trace:
+                name, args, kwargs = _parse_function_call(task)
+                task_requirements = self._parse_task_requirements(name, args, kwargs)
+                parsed_trace.append(
+                    TaskDescription(
+                        id=task, requirements=task_requirements, args=args, kwargs=kwargs
+                    )
                 )
-            )
+        except Exception as ex:
+            raise ValueError(f"[parse trace] Got ex: {ex} with input: {trace}")
 
         return parsed_trace
 

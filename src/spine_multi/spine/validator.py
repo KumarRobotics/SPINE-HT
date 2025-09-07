@@ -15,7 +15,7 @@ VALID_ACTIONS_MULTI_SUGGEST = [
     if obj.__module__ == planning_api.__name__
 ]
 VALID_ACTIONS_MULTI = set(
-    ["goto", "map_region", "inspect", "extend_map", "explore_to", "explore_to_node"]
+    ["goto", "map_region", "inspect", "extend_map", "explore_to_coord", "explore_to_node"]
 )
 
 ValidPlanFeedback = namedtuple("ValidPlanFeedback", ["success", "message"])

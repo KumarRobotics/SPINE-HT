@@ -13,7 +13,7 @@ def ugv_navigate(
 
 
 def ugv_inspect(
-    object_node: str, query: str, ugv_type=["any", "jackal", "husky", "robot_name"]
+    object_node: str, query: str, ugv_type=["any", "jackal", "husky", "spot", "robot_name"]
 ) -> str:
     """Navigate to the closest region, then inspect `object_node` for a specific attribute `query`.
     The query is processed by a vision language model (VLA), and the VLA's answer will be provided.
@@ -22,17 +22,21 @@ def ugv_inspect(
 
 
 def ugv_map_region(
-    region_node: str, ugv_type: str = ["any", "jackal", "husky", "robot_name"]
+    region_node: str, ugv_type: str = ["any", "jackal", "husky", "spot", "robot_name"]
 ) -> str:
     """Navigate to `region_node,` gather a semantic description, and discover nearby objects.
     This subsumes navigation to region_node"""
 
 
-def ugv_explore_to(
-    x: float, y: float, ugv_type: str = ["any", "jackal", "husky", "robot_name"]
+def ugv_explore_to_coord(
+    x: float, y: float, ugv_type: str = ["any", "jackal", "husky", "spot", "robot_name"]
 ) -> str:
-    """Try to add a node near coordinate (x, y) to expand your semantic map. Returns map updates.
-    Note that you may not reach the coordinate exactly."""
+    """Try to navigate to the coordinate (x, y). 
+    If successful, you will update your semantic map with a node at this location.
+    Note that you may not reach the coordinate exactly. Allow for about 10 meters of error.
+    
+    Use this if the mission requires navigating to a coordinate that is not close (within 10 meters) to an existing node.
+    """
 
 
 def explore_to_node(region_node: str, ugv_type=["any", "jackal", "husky", "spot", "robot_name"]) -> str:

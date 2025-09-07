@@ -24,7 +24,7 @@ JACKAL_CAPABILITIES = [
     "ugv_map_region",
     "ugv_inspect",
     "ugv_navigate",
-    "ugv_explore_to",
+    "ugv_explore_to_coord",
     "explore_to_node",
     "jackal",
 ]
@@ -32,7 +32,7 @@ HUSKY_CAPABILITIES = [
     "ugv_map_region",
     "ugv_inspect",
     "ugv_navigate",
-    "ugv_explore_to",
+    "ugv_explore_to_coord",
     "explore_to_node",
     "husky",
 ]
@@ -40,6 +40,7 @@ SPOT_CAPABILITIES = [
     "ugv_inspect",
     "ugv_navigate",
     "ugv_map_region",
+    "ugv_explore_to_coord",
     "explore_to_node",
     "spot",
 ]
@@ -112,7 +113,7 @@ class Collaborator:
         semantic_graph: GraphHandler,
         init_location: str,
         logger: logging.Logger,
-        llm_type: Optional[str] = "gpt5",
+        llm_type: Optional[str] = "gpt4",
     ):
         self._logger = logger
         self._allocator = RobotTaskAssigment(self._logger)

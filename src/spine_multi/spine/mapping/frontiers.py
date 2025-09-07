@@ -646,6 +646,21 @@ class FrontierExtractor:
 
         return frontiers, is_at_obstacle
 
+    def get_neighbors(self, node_coord: np.ndarray) -> List[str]:
+        region_in_costmap_inds = self.get_regions_in_costmap_idx(
+            costmap_info=self.filtered_costmap_with_info
+        )
+
+        all_neighbors = self.find_neighbors_via_linesearch(
+            source_node_coord=node_coord,
+            potential_neighbors_inds=region_in_costmap_inds,
+            resolution_m_p_cell=self.get_resolution_m_p_cell(),
+        )
+
+        return all_neighbors
+
+
+
     def get_missing_neighbors(self, node_id: str, node_coord: float) -> List[str]:
         region_in_costmap_inds = self.get_regions_in_costmap_idx(
             costmap_info=self.filtered_costmap_with_info

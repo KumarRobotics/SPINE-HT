@@ -27,13 +27,15 @@ with open(mapping_api_path) as f:
 mapping_api = "".join(mapping_api[3:])
 
 
-def build_prompt(team_specification: str, llm="gpt5") -> str:
+def build_prompt(team_specification: str, llm="gpt4") -> str:
     if llm == "gpt5":
         PROMPT_TEMPLATE = GPT5_PROMPT_TEMPLATE
         POSTPEND = GPT5_POSTPEND
     if llm == "gpt4":
         PROMPT_TEMPLATE = GPT4_PROMPT_TEMPLATE
         POSTPEND = GPT4_POSTPEND
+    else:
+        raise ValueError(f"{llm} not recognzied option")
 
     return (
         PROMPT_TEMPLATE.format(
