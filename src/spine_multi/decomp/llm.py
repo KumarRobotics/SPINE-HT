@@ -147,6 +147,7 @@ class MissionDecomp:
         graph = nx.DiGraph()
         graph.add_node("start")
         start_nodes = set()
+        target_nodes = set()
 
         cleaned_deps = []
         for dep in deps:
@@ -161,7 +162,10 @@ class MissionDecomp:
         for source, target in cleaned_deps:
             graph.add_edge(source, target)
             start_nodes.add(source)
-            start_nodes.discard(target)
+            target_nodes.add(target)
+        
+        for node in target_nodes:
+            start_nodes.discard(target_nodes)
 
         for node in start_nodes:
             graph.add_edge("start", node)
