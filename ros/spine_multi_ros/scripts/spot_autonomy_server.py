@@ -318,8 +318,10 @@ class SpotAutonomyManager(Node):
 
                 if behavior == "set_labels":
                     self._log_info(f"calling set labels")
+                    incoming_labels = task["labels"][0]
+                    labels = incoming_labels.replace("|", ",")
                     result = self._set_labels_component.set_labels(
-                        task["labels"][0], msg.idx
+                        labels, msg.idx
                     )
 
                     self._log_info(f"got labels call result : {result}")
@@ -340,8 +342,9 @@ class SpotAutonomyManager(Node):
                         break
 
                 if behavior == "map_region":
-                    current_location = task["current_location"][0]
-                    outcomes.append(self._try_add_edges(node_id=current_location))
+                    map_x = task["map_x"][0]
+                    map_y = task["map_y"][0]
+                    outcomes.append(self._try_add_edges(map_x, map_y))
 
 
             self._log_info(f"at end of call")
@@ -353,7 +356,7 @@ class SpotAutonomyManager(Node):
                 self._log_info(f"pub response: {result_msg.result}")
         
 
-    def _try_add_edges(self, node_id) -> dict:
+    def _try_add_edges(self, x: float, y: float) -> dict:
 
         result = {"behavior": ("map_region", "str"),
                   "success": (True, "bool"),
