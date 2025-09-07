@@ -56,6 +56,11 @@ GPT4_PROMPT_TEMPLATE = """
 - Each robot function is defined below; function signatures and docstrings specify expected parameters and return fields.
 - Assign a specific robot only when the task requires its unique capability. Otherwise, use "any" to indicate any available robot can perform the task.
 When a task explicitly requires a unique capability (e.g., best radio), specify the exact robot ID (e.g., Jackal_2).
+- Examples of capability-based assignment:
+    - Rugged terrain -> most rugged robot
+    - Network node placement → Robot with best radio
+    - General mapping on normal terrain → any robot
+    - Tasks that are far away -> fastest robot
 - Try to task all robots, unless dependency conditions are stated in the mission
 - For APIs with a robot_name option, specify a particular robot only if there is a good reason (i.e., a capability requirement).
 
