@@ -158,7 +158,7 @@ class ActionManager:
         )
         goal_coords = self._graph.get_node_coord(goal_node)
         explore_msg = self._msg_handler.build_navigate_msg_dict(
-            goal_coords[0], goal_coords[1], 0, True
+            goal_coords[0], goal_coords[1], 0, False
         )
         metadata["exploration_node_target"] = goal_node
         return nav_request + [explore_msg], metadata
