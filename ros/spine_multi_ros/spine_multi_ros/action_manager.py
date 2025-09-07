@@ -143,7 +143,7 @@ class ActionManager:
         self, region_node: str
     ) -> Tuple[BehaviorRequestData, dict]:
         nav_request, metadata = self._build_goto_region_request(goal_region=region_node)
-        vlm_request = self._msg_handler.build_vlm_query_dict(self.open_scene_prompt, self._robot_name)
+        vlm_request = self._msg_handler.build_vlm_query_dict(self.open_scene_prompt)
 
         region_coords, _ = self._graph.get_node_coords(region_node)
         map_request, mapping_metadata = self._build_map_request(region_coords)
@@ -162,7 +162,10 @@ class ActionManager:
                     "target_explore_x": x,
                     "target_explore_y": y}
         metadata.update(map_metadata)
-        return [explore_request] + map_request, metadata
+
+        vlm_request = self._msg_handler.build_vlm_query_dict(self.open_scene_prompt)
+
+        return [explore_request] + map_request + vlm_request, metadata
         
 
     def _build_attempt_navigate_requests(
@@ -220,6 +223,7 @@ class ActionManager:
     def _parse_explore_to_results(self, result: List[dict], metadata: dict) -> bool:
         explore_results = result[0]
         map_results = result[1]
+        vlm_results = result[2]
         explore_success = explore_results['success'][0]
         source_node = metadata["begin_exploration_from"]
         x = metadata["target_explore_x"]
@@ -247,6 +251,11 @@ class ActionManager:
 
             metadata["region_node"] = new_node["name"]
             map_success = self._parse_map_result(map_results, metadata)
+
+
+            metadata["vlm_target"] = new_node["name"]
+
+            self._parse_vlm_result(vlm_results, metadata)
 
         return explore_success and map_success
     
@@ -513,7 +522,7 @@ class ActionManager:
         self, goal_region: str, target_yaw: Optional[float] = None
     ) -> Tuple[BehaviorRequestData, dict]:
         nav_start_location = self._graph.get_current_location()
-        if nav_start_location == goal_region:
+        if nav_start_location == goal_region and target_yaw == None:
             return [], {"region_node": goal_region, "target_nodes": []}
 
         self._log_info(f"computing path between {nav_start_location} -> {goal_region}")
@@ -525,7 +534,7 @@ class ActionManager:
         target_nodes = []
         for node in path:
             self._log_info(f"Next node: {node}")
-            if nav_start_location == node:
+            if nav_start_location == node and goal_region != node:
                 continue
 
             coords = self._graph.get_node_coord(node)

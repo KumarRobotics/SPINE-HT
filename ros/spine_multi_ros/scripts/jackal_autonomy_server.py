@@ -306,7 +306,7 @@ class JackalAutonomyManager(Node):
                         result = {
                             "behavior": ("query_vlm", "str"),
                             "success": (success, "bool"),
-                            "answer": ("VLM unavailable on this robot", "str"),
+                            "answer": ("VLM unavailable on this robot. Cannot generate description", "str"),
                         }
 
                     outcomes.append(result)
