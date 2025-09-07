@@ -13,7 +13,7 @@ def ugv_navigate(
 
 
 def ugv_inspect(
-    object_node: str, query: str, ugv_type=["any", "jackal", "husky", "spot", "robot_name"]
+    object_node: str, query: str, ugv_type=["any", "jackal", "spot", "robot_name"]
 ) -> str:
     """Navigate to the closest region, then inspect `object_node` for a specific attribute `query`.
     The query is processed by a vision language model (VLA), and the VLA's answer will be provided.
