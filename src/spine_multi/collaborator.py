@@ -120,7 +120,8 @@ class Collaborator:
         self._semantic_graph = semantic_graph
         self._init_location = init_location
         self._mission_decomp = MissionDecomp(
-            team_specification=team_spec_language, llm_type=llm_type
+            team_specification=team_spec_language, llm_type=llm_type,
+            logger=self._logger
         )
         self._validator = Validator(self._logger)
         self._updates_given_as_tasks = set()

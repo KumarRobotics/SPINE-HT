@@ -102,6 +102,8 @@ class RobotTaskAssigment:
         robot_capabilities = set(robot.capabilities)
         task_requirements = set(task.requirements)
 
+        self._logger.info(f"Robot capabilities: {robot_capabilities}\ntask reqs: {task_requirements}.\nis subset: {task_requirements.issubset(robot_capabilities)}")
+
         return task_requirements.issubset(robot_capabilities)
 
     def _add_dummy_tasks(self, tasks: List[TaskDescription]) -> List[TaskDescription]:
