@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from typing import Dict, List, Optional
-
+import numpy as np
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
@@ -52,12 +52,27 @@ class TrackerClientComponent:
             callback_group=track_cbk_group,
         )
 
+    def _log_info(self, msg):
+        self._parent_node.get_logger().info(f"[tracker client] {msg}")
+
     def set_current_location(self, location: str) -> None:
         self._current_location = location
 
     def _track_cbk(self, track: Track) -> None:
         # parent = self._current_location
         parent = self._graph.get_current_location()
+
+        track_point = np.array(
+            [track.pose.pose.position.x, track.pose.pose.position.y]
+        )
+        region_nodes, region_node_locs = self.graph.get_region_nodes_and_locs()
+        closest_region_idx = np.linalg.norm(
+            track_point - region_node_locs[:, :2], axis=-1
+        ).argmin()
+        parent = region_nodes[closest_region_idx]
+
+
+        self._log_info(f"assigned incoming track to {parent} at {region_node_locs[closest_region_idx]}")
 
         track = from_track_msg(track, parent=parent)
 
