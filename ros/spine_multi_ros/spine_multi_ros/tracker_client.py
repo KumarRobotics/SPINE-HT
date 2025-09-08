@@ -65,7 +65,7 @@ class TrackerClientComponent:
         track_point = np.array(
             [track.pose.pose.position.x, track.pose.pose.position.y]
         )
-        region_nodes, region_node_locs = self.graph.get_region_nodes_and_locs()
+        region_nodes, region_node_locs = self._graph.get_region_nodes_and_locs()
         closest_region_idx = np.linalg.norm(
             track_point - region_node_locs[:, :2], axis=-1
         ).argmin()
