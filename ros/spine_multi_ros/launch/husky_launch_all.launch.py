@@ -132,8 +132,7 @@ def generate_launch_description():
                 name="twist_converter",
                 remappings=[("cmd_vel", "/autonomous/cmd_vel")],  # Remap output
                 parameters=[{"flip_x": True},
-                            {"scale_x", 7.0},
-                            {"scale_z", 7.0}], 
+                            ], 
             ),
             IncludeLaunchDescription(
                 launch_vision,

@@ -13,8 +13,8 @@ class TwistConverter(Node):
         self.declare_parameter("namespace", "warthog1")
         self.declare_parameter("publish_stamped", True)
         self.declare_parameter("flip_x", False)
-        self.declare_parameter("scale_x", 1.0)
-        self.declare_parameter("scale_z", 1.0)
+        self.declare_parameter("scale_x", 7.0)
+        self.declare_parameter("scale_z", 7.0)
 
         namespace = self.get_parameter("namespace").get_parameter_value().string_value
         self._flip_x = self.get_parameter("flip_x").get_parameter_value().bool_value
