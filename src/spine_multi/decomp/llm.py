@@ -99,7 +99,7 @@ class MissionDecomp:
         "mission_answer",
     ]
 
-    def __init__(self, team_specification: str, llm_type="gpt4"):
+    def __init__(self, team_specification: str, llm_type="gpt4", logger = None):
         self._msg_history = []
         if llm_type == "gpt5":
             self._llm_client = GPT5Client(
@@ -117,6 +117,13 @@ class MissionDecomp:
         self._base_prompt = build_prompt(
             team_specification=team_specification, llm=self._llm_type
         )
+
+        self._logger = logger
+
+
+    def _log_info(self, msg) -> None:
+        if self._logger != None:
+            self._logger.info(f"[llm.py] {msg}")
 
     def get_mission_specification(self) -> str:
         return self._mission_specification
@@ -142,12 +149,35 @@ class MissionDecomp:
     def _query_llm(self, msg: List[Dict[str, str]]) -> Dict:
         return self._llm_client.query_llm(msg)
 
+
+    # def _build_graph(self, tasks: List[str], deps) -> nx.DiGraph:
+    #     graph = nx.DiGraph()
+    #     graph.add_node("start")
+    #     start_nodes = set()
+
+    #     cleaned_deps = []
+    #     for dep in deps:
+    #         dep = [d for d in dep if d != ""]
+    #         if len(dep) >= 2:
+    #             cleaned_deps.append(dep)
+
+    #     for task in tasks:
+    #         graph.add_node(task)
+    #         start_nodes.add(task)
+
+    #     for source, target in cleaned_deps:
+    #         graph.add_edge(source, target)
+    #         start_nodes.discard(target)
+
+    #     for node in start_nodes:
+    #         graph.add_edge("start", node)
+
+    #     return graph
+
     def _build_graph(self, tasks: List[str], deps) -> nx.DiGraph:
-        # TODO try fix
         graph = nx.DiGraph()
         graph.add_node("start")
         start_nodes = set()
-        target_nodes = set()
 
         cleaned_deps = []
         for dep in deps:
@@ -160,17 +190,23 @@ class MissionDecomp:
             start_nodes.add(task)
 
         for source, target in cleaned_deps:
+            graph.add_node(source)
+            graph.add_node(target)
+            start_nodes.add(target)
+
+        for source, target in cleaned_deps:
             graph.add_edge(source, target)
-            start_nodes.add(source)
-            target_nodes.add(target)
-        
-        for node in target_nodes:
-            start_nodes.discard(target_nodes)
+            start_nodes.discard(target)
 
         for node in start_nodes:
             graph.add_edge("start", node)
 
+
+        if self._logger is not None:
+            self._logger.info(f"Start nodes: {start_nodes}. All nodes: {graph.nodes}")
+
         return graph
+
 
     def save_graph(self, graph: nx.Graph, fpath) -> None:
         plt.figure(figsize=(8, 6))
@@ -226,10 +262,16 @@ class MissionDecomp:
                 # raise ValueError(
                 #     f"mission trace must be longer than 1. Have trace: {mission_trace[0]}. Leafs: {leaf_nodes}. All nodes: {all_nodes}"
                 # )
+                self._logger.info(f"skipping trace: {mission_trace}")
+
+
                 pass
             else:
                 trace = self._parse_task_trace(mission_trace[0][1:])
                 all_traces.append(trace)
+
+        if self._logger != None:
+            self._logger.info(f"have mission traces: {all_traces}")
 
         return all_traces, log_output
 
@@ -244,7 +286,7 @@ class MissionDecomp:
     ) -> List[str]:
 
         requirements = self._get_function_requirements(function_name)
-        if function_name.startswith("ugv") and "ugv_type" in task_kwargs:
+        if function_name.startswith("ugv") or function_name.startswith("explore") and "ugv_type" in task_kwargs:
             if task_kwargs["ugv_type"] != "any":
                 requirements.append(task_kwargs["ugv_type"])
 
@@ -256,6 +298,7 @@ class MissionDecomp:
             for task in trace:
                 name, args, kwargs = _parse_function_call(task)
                 task_requirements = self._parse_task_requirements(name, args, kwargs)
+                self._log_info(f"task: {task}. reqs: {task_requirements}")
                 parsed_trace.append(
                     TaskDescription(
                         id=task, requirements=task_requirements, args=args, kwargs=kwargs

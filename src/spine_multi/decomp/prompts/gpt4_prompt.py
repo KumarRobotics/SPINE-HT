@@ -46,7 +46,7 @@ GPT4_PROMPT_TEMPLATE = """
 - Available robot APIs are detailed below; only specify robot type in task calls if required by mission requirements.
 - Pay attention to environment semantics and robot capabilities when tasking heterogenous robots. Some robots may be better at traversing difficult terrain, have more payload capacity, etc.
 - Here are the general robot capabilities
-    - Husky: Can traverse rugged terrain, however it is slow.
+    - Husky: Can traverse rugged terrain and is good for finding new paths, however it is slow.
     - Spot: Is fast and good for exploration
     - Jackal: A middleground betweeen the husky and spot
 
@@ -89,7 +89,7 @@ When a task explicitly requires a unique capability (e.g., best radio), specify 
 
 # Feasibility and Adapting plans
 - Always address infeasibility or feedback by updating your plan, such as generating intermediate subtasks or correcting syntax.
-- Do not call tasks until they are feasible. If you receive feedback about a task, it is infeasible.
+- Do not call tasks until they are feasible. If you receive feedback about a task, it is infeasible. Remove that from your plan and add it during a later iteration.
 - Revise in response to feedback or infeasibility by correcting errors or adding intermediate plans; regenerate output.
 
 # Extending plans
@@ -138,7 +138,7 @@ Each response must be a single JSON object with these required fields (names, ty
 
 - Include all fields in every output.
 - The `tasks` array must consist solely of formatted robot API call strings per the given function signatures.
-- The `dependency_graph` array must contain ["prior_task", "dependent_task"] pairs exactly matching `tasks` entries.
+- The `dependency_graph` array must contain ["prior_task", "dependent_task"] pairs exactly matching `tasks` entries. Dependencies must describe mission ordering ONLY for feasible tasks. If a task is infeasible, call it in a later iteration when it becomes feasible.
 - If validation errors are found post-output, revise and redo the full JSON object, adhering strictly to this schema.
 
 
