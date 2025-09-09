@@ -65,18 +65,20 @@ class GraphViz:
         publisher : rclpy.publisher.Publisher
             Send messages on this publisher.
         """
-        if (
-            self.changed
-            or self.prev_num_connections != publisher.get_subscription_count()
-        ):
-            self.prev_num_connections = publisher.get_subscription_count()
-            for node_marker in self.node_markers.values():
-                publisher.publish(node_marker.node_marker)
-                publisher.publish(node_marker.text_marker)
-            for edge_marker in self.edge_markers.values():
-                publisher.publish(edge_marker)
+        # TODO look at logic
+        # let's try publishing graph no matter what 
+        # if (
+        #     self.changed
+        #     or self.prev_num_connections != publisher.get_subscription_count()
+        # ):
+        # self.prev_num_connections = publisher.get_subscription_count()
+        for node_marker in self.node_markers.values():
+            publisher.publish(node_marker.node_marker)
+            publisher.publish(node_marker.text_marker)
+        for edge_marker in self.edge_markers.values():
+            publisher.publish(edge_marker)
 
-            self.changed = False
+        self.changed = False
 
     def get_marker_msg(self, x: int, y: int, id: int, z=1) -> Marker:
         marker_msg = Marker()
@@ -160,7 +162,7 @@ class GraphVisualizerComponent:
         graph: GraphHandler,
         scale: float = 1.0,
         target_frame: str = "map",
-        publish_rate: float = 10.0,
+        publish_rate: float = 1.0,
         topic_name: str = "visualization_marker",
     ):
         """
