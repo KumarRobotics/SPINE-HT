@@ -66,6 +66,7 @@ def generate_launch_description():
                 [namespace_arg, "/grounding_dino_node/detections"],
                 [namespace_arg, "/grounding_dino_node/detection_img"],
                 [namespace_arg, "/grounding_dino_node/tracks"],
+                [namespace_arg, "/grounding_dino_node/info"],
                 [namespace_arg, "/cmd_vel"],
                 [namespace_arg, "/grounding_dino_node/detections_marker"],
                 [namespace_arg, "/goal_pose"],

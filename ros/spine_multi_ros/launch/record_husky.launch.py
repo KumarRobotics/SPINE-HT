@@ -68,6 +68,7 @@ def generate_launch_description():
                 "/a200_0000/auto_mode/cmd_vel",
                 "/grounding_dino_node/detections_marker",
                 "/grounding_dino_node/tracks",
+                "/grounding_dino_node/info",
                 "/goal_pose",
                 "/plan",
                 "/local_plan",
