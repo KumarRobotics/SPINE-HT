@@ -171,9 +171,9 @@ local_costmap:
           marking: true
           data_type: "PointCloud2"
           raytrace_max_range: 10.0
-          raytrace_min_range: 0.25
+          raytrace_min_range: 0.4
           obstacle_max_range: 8.0
-          obstacle_min_range: 0.25
+          obstacle_min_range: 0.4
 
 
 global_costmap:
@@ -218,9 +218,9 @@ global_costmap:
           marking: true
           data_type: "PointCloud2"
           raytrace_max_range: 25.0
-          raytrace_min_range: 0.25
+          raytrace_min_range: 0.4
           obstacle_max_range: 20.0
-          obstacle_min_range: 0.25
+          obstacle_min_range: 0.4
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 0.25
