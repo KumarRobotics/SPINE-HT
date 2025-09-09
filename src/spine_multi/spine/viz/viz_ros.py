@@ -195,6 +195,8 @@ class GraphVisualizerComponent:
 
         # Initialize graph viz
         self.graph_viz = GraphViz(graph, scale=scale, target_frame=target_frame)
+        self.set_graph(graph=graph)
+
 
         self.parent_node.get_logger().info("Graph Visualizer Component initialized")
 
