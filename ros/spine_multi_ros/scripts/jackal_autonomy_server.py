@@ -27,6 +27,7 @@ from teaming_msgs.msg import BehaviorRequest, BehaviorResult, GoalRequest, GoalS
 from teaming_msgs.srv import SetLabels, Query
 from spine_multi.spine.mapping.frontiers import FrontierExtractor, Node as GraphNode
 from spine_multi.spine.mapping.graph_util import GraphHandler, parse_graph
+from spine_multi_ros.progress_checker import ProgressChecker
 import json
 
 
@@ -460,6 +461,14 @@ class JackalNavigationComponent:
             callback_group=param_group,
         )
 
+        # robot must move at least 0.5m every 30 s
+        self._progress_checker = ProgressChecker(parent_node=parent_node,
+                                                world_frame="map",
+                                                robot_frame="base_link",
+                                                timeout_s=60,
+                                                 dist_tol=0.5,
+                                                 )
+
         # Wait for action server to be available
         self._log_info(
             f"Waiting for Nav2 action server on {navigation_action_server}..."
@@ -492,6 +501,7 @@ class JackalNavigationComponent:
         self._in_progress = True
         self._goal_successful = False
         self._result_future = Future()
+        self._progress_checker.reset()
 
         self.send_goal(x, y, yaw, check_yaw=check_yaw)
 
@@ -499,6 +509,12 @@ class JackalNavigationComponent:
             self._parent_node.get_logger().info(
                 "[nav manager] waiting for goal to complete"
             )
+            if self._progress_checker.has_timedout():
+                self._parent_node.get_logger().info(
+                    "[nav manager] [WARNING] cancelling goal"
+                )
+ 
+                self._cancel_goal()
             time.sleep(5)
 
         # TODO check this
