@@ -77,7 +77,7 @@ def generate_launch_description():
                 [namespace_arg, "/behavior_request_ack"],
                 [namespace_arg, "/behavior_result"],
                 [namespace_arg, "groundgrid/obstacle_cloud"],
-                "/ouster/points",
+                # "/ouster/points",
                 "/tf",
                 "/tf_static",
                 "-o",
