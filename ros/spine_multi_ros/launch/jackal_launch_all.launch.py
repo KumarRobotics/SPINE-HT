@@ -137,8 +137,8 @@ def generate_launch_description():
                 executable="twist_converter.py",
                 name="twist_converter",
                 remappings=[("cmd_vel", "autonomous/cmd_vel")],  # Remap output
-                parameters=[{"scale_x": 5.0},
-                            {"scale_z": 5.0}]
+                parameters=[{"scale_x": 3.0},
+                            {"scale_z": 3.0}]
             ),
             Node(
                 package="safety_controller",
