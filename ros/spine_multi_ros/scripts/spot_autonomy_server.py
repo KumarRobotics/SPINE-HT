@@ -443,7 +443,7 @@ class SpotNavigationComponent:
         parent_node: Node,
         spot_client: Spot,
         frame_id: str = "map",
-        goal_tol: Optional[float] = 3,
+        goal_tol: Optional[float] = 5,
         status_topic: Optional[str] = "nav_component/status",
     ):
         self._spot_client = spot_client
