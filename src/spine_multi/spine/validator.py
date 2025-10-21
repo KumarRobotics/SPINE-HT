@@ -15,7 +15,7 @@ VALID_ACTIONS_MULTI_SUGGEST = [
     if obj.__module__ == planning_api.__name__
 ]
 VALID_ACTIONS_MULTI = set(
-    ["goto", "map_region", "inspect", "extend_map", "explore_to_coord", "explore_to_node"]
+    ["goto", "map_region", "inspect", "extend_map", "explore_to_coord", "explore_to_node", "uav_map_region", "uav_explore_to"]
 )
 
 ValidPlanFeedback = namedtuple("ValidPlanFeedback", ["success", "message"])
@@ -191,6 +191,8 @@ class Validator:
                 feedback += (
                     f"Try calling explore_to_node({target_node}) to find a path"
                 )
+
+                feedback += f"\nAnd remove {function}({first_arg}) from your current plan"
 
                 # NOTE original feedback below
                 # feedback += (

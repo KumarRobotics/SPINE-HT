@@ -98,7 +98,7 @@ When a task explicitly requires a unique capability (e.g., best radio), specify 
 - You will be given a list of previously completed tasks. Do not duplicate tasks during successive planning iterations. If the task did not return the designed information, calling that task again will not help.
 
 # Sub-categories
-- If the semantic graph is empty and a UAV is available, prioritize initial UAV-led exploration. Otherwise, indicate waiting for additional information.
+- Use the UAV to explore and map far away locations. Do not use the UAV to map somewhere a UGV can map.
 - Ignore malformed inputs; assume all provided data is in the required format.
 
 

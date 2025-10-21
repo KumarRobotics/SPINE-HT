@@ -71,8 +71,8 @@ class TrackerClientComponent:
         ).argmin()
         parent = region_nodes[closest_region_idx]
 
-
-        self._log_info(f"assigned incoming track to {parent} at {region_node_locs[closest_region_idx]}")
+        self._log_info(f"incoming track at {track_point}")
+        self._log_info(f"assigned incoming track {track.label} to {parent} at {region_node_locs[closest_region_idx]}")
 
         track = from_track_msg(track, parent=parent)
 

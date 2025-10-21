@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
 
 
+import json
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, TypeAlias
-import json
-from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from std_msgs.msg import String
-from rclpy.callback_groups import ReentrantCallbackGroup
 
 import numpy as np
 import rclpy
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from spine_multi.collaborator import (
     FALCON_4_CAPABILITIES,
     HUSKY_CAPABILITIES,
     JACKAL_CAPABILITIES,
-    Collaborator,
-    RobotDescription,
-    RobotConfig,
     BehaviorResult,
-    get_capability_set
+    Collaborator,
+    RobotConfig,
+    RobotDescription,
+    get_capability_set,
 )
+from spine_multi.spatial_tools import SE2Transforms
 from spine_multi.planner_logging import get_logger
 from spine_multi.spine.class_llm import ClassLLM
 from spine_multi.spine.mapping.graph_util import GraphHandler
 from spine_multi_ros.autonomy_manager import AutonomyManager
+from std_msgs.msg import String
 from teaming_msgs.srv import Mission
-
 
 # robot, [function, [args]]
 RobotTask: TypeAlias = Tuple[str, Tuple[str, List[str]]]
@@ -67,12 +67,23 @@ class SPINEMultiNode(Node):
                 RobotDescription(
                     id=robot_config.name,
                     type=robot_config.type,
-                    capabilities=get_capability_set(robot_name=robot_config.name, robot_type=robot_config.type),
+                    capabilities=get_capability_set(
+                        robot_name=robot_config.name, robot_type=robot_config.type
+                    ),
                     location=np.array([]),
                 )
             )
 
         self._graph = GraphHandler(graph_path=init_graph)
+
+        self._graph_viz = GraphVisualizerComponent(
+            parent_node=self,
+            graph=self._graph,
+            target_frame="map",
+            topic_name="/basestation/graph_viz",
+            scale=2.0,
+        )
+        self._graph_viz.set_graph(self._graph)
 
         self._tracks = {}
 
@@ -109,6 +120,19 @@ class SPINEMultiNode(Node):
         )
         self._graph_publisher = self.create_publisher(String, "graph", qos_profile)
 
+        self._no_uav_graph_yet = True
+        uav_graph_cbk_group = ReentrantCallbackGroup()
+        self._uav_graph_sub = self.create_subscription(
+            String,
+            "/titan/graph",
+            callback=self._uav_graph_sub,
+            callback_group=uav_graph_cbk_group,
+            qos_profile=qos_profile,
+        )
+
+        # if user wants to send msg mid mission
+        self._interrupt_msg = ""
+
         timer_cbk_group = ReentrantCallbackGroup()
         self.timer = self.create_timer(
             1.0, self._graph_pub_cbk, callback_group=timer_cbk_group
@@ -116,6 +140,15 @@ class SPINEMultiNode(Node):
 
         self.mission_srv = self.create_service(
             Mission, "/spine_multi/mission", self._mission_cbk
+        )
+
+        interrupt_cbk_group = ReentrantCallbackGroup()
+
+        self.interrupt_srv = self.create_service(
+            Mission,
+            "/spine_multi/interrupt",
+            self._interrupt_cbk,
+            callback_group=interrupt_cbk_group,
         )
 
         self._log_info(
@@ -189,7 +222,8 @@ class SPINEMultiNode(Node):
         # construct tasks
         set_label_assignments = []
         for robot, manager in self._robot_autonomy_managers.items():
-            set_label_assignments.append((robot, ("set_labels", [label_set])))
+            if not manager._robot_name.startswith("titan"):
+                set_label_assignments.append((robot, ("set_labels", [label_set])))
 
         return self._task_robots_async(
             assignments=set_label_assignments, planning_idx=0
@@ -199,12 +233,122 @@ class SPINEMultiNode(Node):
         # construct tasks
         set_label_assignments = []
         for robot, manager in self._robot_autonomy_managers.items():
-            set_label_assignments.append((robot, ("set_labels", [label_set])))
-            self._robot_tasks[robot].append(("set_labels", [label_set]))
+            if not manager._robot_name.startswith("titan"):
+                set_label_assignments.append((robot, ("set_labels", [label_set])))
+                self._robot_tasks[robot].append(("set_labels", [label_set]))
 
         # return self._task_robots_async(
         #     assignments=set_label_assignments, planning_idx=0
         # )
+
+    def _parse_node_data(self, data: dict, transform: SE2Transforms) -> dict:
+        try:
+            name = data["name"]
+            coords = data["coords"]
+            coords_arr = np.array([float(coords[0]), float(coords[1])])
+
+            self._log_info(f"have raw pt: {coords_arr}")
+            coords_transformed = transform.transform_pt(coords_arr)
+
+            coords_transformed = np.round(coords_transformed, 1)
+
+            self._log_info(f"Point {coords_arr} -> {coords_transformed}")
+
+
+            # normalize
+
+            return name, {"coords": coords_transformed, "description": "from_uav"}
+
+        except Exception as ex:
+            self._log_info(f"[parse node data] [ERROR] when parsing {data}: {ex}")
+            return {}
+
+    def _parse_uav_graph(self, graph_as_str, uav_name="titan_1"):
+        uav_node_suffix = "_from_uav"
+        incoming_graph = json.loads(graph_as_str)
+
+        assert uav_name in self._robot_autonomy_managers
+        prompt_former = self._robot_autonomy_managers[uav_name]._prompt_former
+
+        origin = np.array([482942.36, 4421353.33])
+        rot_extra = 0.5759
+        rot = -1.5708 + rot_extra * 0.25
+
+        transform = SE2Transforms(origin=origin, rot_radians=rot, inverse=True)
+
+        new_nodes = []
+        new_connections = []
+        if "regions" in incoming_graph.keys():
+            for region_node in incoming_graph["regions"]:
+                name, attrs = self._parse_node_data(region_node, transform = transform)
+                name += uav_node_suffix
+                attrs["type"] = "region"
+                self._graph.update_with_node(node=name, edges=[], attrs=attrs)
+                attrs["name"] = name
+                new_nodes.append(attrs)
+
+        if "objects" in incoming_graph.keys():
+            for object_node in incoming_graph["objects"]:
+                name, attrs = self._parse_node_data(object_node, transform=transform)
+                name += uav_node_suffix
+                attrs["type"] = "object"
+                self._graph.update_with_node(node=name, edges=[], attrs=attrs)
+
+                attrs["name"] = name
+                new_nodes.append(attrs)
+
+        if "region_connections" in incoming_graph.keys():
+            for region_connection in incoming_graph["region_connections"]:
+                source = region_connection[0] + uav_node_suffix
+                target = region_connection[1] + uav_node_suffix
+                if self._graph.contains_node(source) and self._graph.contains_node(
+                    target
+                ):
+                    self._graph.update_with_edge(edge=(source, target), attrs={"type": "region"})
+                    new_connections.append((source, target))
+                else:
+                    self._log_info(
+                        f"[uav graph sub] [WARNING] {source} or {target} not in graph"
+                    )
+
+        if "object_connections" in incoming_graph.keys():
+            for object_connection in incoming_graph["object_connections"]:
+                source = object_connection[0] + uav_node_suffix
+                target = object_connection[1] + uav_node_suffix
+                if self._graph.contains_node(source) and self._graph.contains_node(
+                    target
+                ):
+                    self._graph.update_with_edge(edge=(source, target), attrs={"type": "object"})
+                    new_connections.append((source, target))
+                else:
+                    self._log_info(
+                        f"[uav graph sub] [WARNING] {source} or {target} not in graph"
+                    )
+
+        for node in new_nodes:
+            self._log_info(f"have node: {node}")
+
+        prompt_former.update(new_nodes=new_nodes, new_connections=new_connections)
+        self._graph_viz.set_graph(self._graph)
+
+
+    def _uav_graph_sub(self, graph_msg: String) -> None:
+        try:
+            if self._no_uav_graph_yet:
+                self._parse_uav_graph(
+                    graph_as_str=graph_msg.data, uav_name="titan_1"
+                )
+                self._no_uav_graph_yet = True
+
+        except Exception as ex:
+            self._log_info(f"[uav graph sub] got exception {ex}")
+
+    def _interrupt_cbk(
+        self, request: Mission.Request, response: Mission.Response
+    ) -> Mission.Response:
+        self._interrupt_msg = request.spec
+        response.resp = "interrupt received"
+        return response
 
     def _mission_cbk(
         self, request: Mission.Request, response: Mission.Response
@@ -214,9 +358,14 @@ class SPINEMultiNode(Node):
         _, mission_labels = self._class_llm.request(request.spec)
         self._log_info(f"setting mission labels: {mission_labels}")
         self._set_labels_to_tasks(",".join(mission_labels["classes"]))
+ 
+        updates = ""
+        if not self._collaborator.has_mission():
+            self._collaborator.init_planner(mission_specifications=request.spec)
+        else:
+            updates = self._get_new_spec_updates(request.spec)
 
-        self._collaborator.init_planner(mission_specifications=request.spec)
-        allocation_result = self._collaborator.get_allocation()
+        allocation_result = self._collaborator.get_allocation(updates=updates)
 
         self.get_logger().info(
             f"{self._collaborator.get_result_str(allocation_result)}"
@@ -239,7 +388,7 @@ class SPINEMultiNode(Node):
 
             assignment_str = ""
 
-            assignment_str += ",".join(
+            assignment_str += ", ".join(
                 [f"{r} was assigned {t}" for (r, t) in allocation_result.assignments]
             )
             self.get_logger().info(
@@ -278,27 +427,48 @@ class SPINEMultiNode(Node):
                     break
                 else:
                     assignments = self._collaborator.reassign_tasks()
-                    assignment_str += ",".join(
+                    assignment_str += ", ".join(
                         [f"{r} was assigned {t}" for (r, t) in assignments]
                     )
 
             # at the end of each planning iteration, empty mapping queue, form updates
             # and send to LLM
-            updates = ""
             for robot, autonomy_manager in self._robot_autonomy_managers.items():
                 autonomy_manager._tracker_component.parse_track_updates()
                 robot_feedback = autonomy_manager._prompt_former.form_updates()
                 updates += f"{robot} updates: {robot_feedback}\n"
 
-            updates += f"\nPrevious assignments: {assignment_str}"
+            updates += f"\nPrevious assignments: {assignment_str}\n"
 
             self._log_info(f"sending updates: {updates}")
+
+            if self._interrupt_msg != "":
+                updates += self._get_new_spec_updates(self._interrupt_msg)
+                self._interrupt_msg = ""
 
             allocation_result = self._collaborator.get_allocation(updates=updates)
             self._log_info(f"{self._collaborator.get_result_str(allocation_result)}")
 
         response.resp = allocation_result.mission_answer
         return response
+
+    def _get_new_spec_updates(self, spec: str) -> str:
+        """Get update in API for llm
+
+        Parameters
+        ----------
+        spec : str
+            New mission specification
+
+        Returns
+        -------
+        str
+            Updates to provide to LLM
+        """
+        self._log_info(f"got interrupt msg: {spec}")
+        updates = f"Updated mission: {spec}\n"
+        return updates
+
 
     def _task_robots_async(
         self, assignments: List[Tuple[str, Tuple[str, List[str]]]], planning_idx: int
@@ -341,7 +511,7 @@ class SPINEMultiNode(Node):
                 )
 
             self.get_logger().info(
-                f"[spine node] robot results are done for {assignments}"
+                f"[spine node] robot results are done for {robot}"
             )
 
         return results

@@ -15,6 +15,9 @@ from spine_multi.spine import GraphHandler
 from spine_multi.spine.mapping.frontiers import FrontierExtractor
 from spine_multi.spine.util import UpdatePromptFormer
 from spine_multi.spine.viz.viz_ros import GraphVisualizerComponent
+from spine_multi.spatial_tools import SE2Transforms
+
+from geometry_msgs.msg import PointStamped
 
 from spine_multi_ros.action_manager import ActionManager
 from spine_multi_ros.msg_handler import MessageHandler
@@ -118,6 +121,9 @@ class AutonomyManager:
         )
         self._log_info(f"initialized costmap cbk")
 
+        # TODO need to clean this up
+        self._uav_goal_pub = self._parent_node.create_publisher(PointStamped, "/to_titan/goal", qos_profile=qos_profile)
+
         self._log_info(f"initialized")
 
     def _log_info(self, msg: str) -> None:
@@ -151,6 +157,34 @@ class AutonomyManager:
     def call_behavior(self, behavior, args):
         return self._behavior_library[behavior](*args)
 
+
+    # TODO need to clean up
+    def _to_world_coord(self, x: float, y: float) -> Tuple[float, float]:
+        origin = np.array([482942.36, 4421353.33])
+        rot_extra = 0.5759
+        rot = -1.5708  + rot_extra * 0.25
+
+        transform = SE2Transforms(origin=origin, rot_radians=-rot, inverse=False)
+        new_pt = transform.transform_pt(np.array([x, y]))
+
+        return new_pt[0], new_pt[1]
+
+
+
+    # TODO this needs to go somewhere else
+    def _build_pointstamped(self, x: float, y: float) -> PointStamped:
+        msg = PointStamped()
+        # Fill the header
+        msg.header.frame_id = "map"
+        msg.header.stamp = self._parent_node.get_clock().now().to_msg()
+        
+        # Fill the point
+        msg.point.x = x
+        msg.point.y = y
+        msg.point.z = 0.0
+        return msg
+
+
     def call_behavior_sequence(
         self, behavior_requests: List[Tuple[str, List[Any]]]
     ) -> List[bool]:
@@ -161,6 +195,29 @@ class AutonomyManager:
         self._log_info(f"in call behavior sequence with {behavior_requests}")
 
         for behavior, args in behavior_requests:
+            self._log_info(f"[build behaviors] {behavior}, {args}\n\n")
+
+            if behavior.startswith("uav"):
+                
+                if behavior == "uav_map_region":
+                    coords = self._graph.get_node_coord(args[0])
+                    coords_world = self._to_world_coord(coords[0], coords[1])
+                    goal_msg = self._build_pointstamped(coords_world[0], coords_world[1])
+                    self._uav_goal_pub.publish(goal_msg)
+                    self._log_info(f"have coords: {coords}")
+
+                elif behavior == "uav_explore_to":
+                    x = float(args[0])
+                    y = float(args[1])
+                    x_world, y_world = self._to_world_coord(x, y)
+                    goal_msg = self._build_pointstamped(x_world, y_world)
+                    self._uav_goal_pub.publish(goal_msg)
+
+                    self._log_info(F"have xy: {args}, {args[0]}, {args[1]}")
+
+                self._log_info(f"[build behaviors] WARNINg skipping {behavior}, {args}\n\n")
+                continue
+
             if behavior not in self._msg_building_library:
                 self._log_info(f"ERROR {behavior} not in msg building library")
 
@@ -168,6 +225,11 @@ class AutonomyManager:
 
             behavior_req_data.extend(behavior_req_msg)
             behavior_info.append([behavior, len(behavior_req_msg), metadata])
+
+
+        if len(behavior_req_data) == 0:
+            self._log_info(f"WARNING skipping request for {self._robot_name}")
+            return [True] * len(behavior_requests)
 
         behavior_req_msg = self._msg_handler.build_behavior_msg(behavior_req_data)
         results = self._msg_handler.send_and_wait(behavior_req_msg)

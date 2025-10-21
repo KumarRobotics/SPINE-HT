@@ -65,6 +65,8 @@ class ActionManager:
             "map_region": self._build_map_region_requests,
             "set_labels": self._build_set_label_request,
             "explore_to_node": self._build_attempt_navigate_requests,
+            "uav_map_region": self._build_uav_map_request,
+            "uav_explore_to": self._build_uav_explore_to_request,
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
@@ -79,6 +81,8 @@ class ActionManager:
             "map_region": self._parse_map_region_results,
             "set_labels": self._parse_set_label_results,
             "explore_to_node": self._parse_attempt_navigate_results,
+            "uav_map_region": self._parse_uav_map_request,
+            "uav_explore_to": self._parse_uav_explore_to_request,
             "replan": lambda x: True,
             "clarify": lambda x: True,
             "answer": lambda x: True,
@@ -151,22 +155,40 @@ class ActionManager:
         metadata.update(mapping_metadata)
         return request_sequence, metadata
 
-    def _build_explore_to_request(
-            self, x: float, y: float
-    ):
-        explore_request = self._msg_handler.build_navigate_msg_dict(
-            x, y, 0, False
+    def _build_uav_map_request(
+        self, region_id: str
+    ) -> Tuple[List[BehaviorRequestData], dict]:
+        return [], {}
+
+    def _parse_uav_map_request(self, results: List[dict], metadata: dict) -> bool:
+        return True
+
+    def _build_uav_explore_to_request(
+        self, x: float, y: float
+    ) -> Tuple[List[BehaviorRequestData], dict]:
+        return [], {}
+
+    def _parse_uav_explore_to_request(
+        self, results: List[dict], metadata: dict
+    ) -> bool:
+        self._prompt_former.update(
+            freeform_updates="The UAV has been tasked and will send map updates when available"
         )
+        return True
+
+    def _build_explore_to_request(self, x: float, y: float):
+        explore_request = self._msg_handler.build_navigate_msg_dict(x, y, 0, False)
         map_request, map_metadata = self._build_map_request(np.array([x, y]))
-        metadata = {"begin_exploration_from": self._graph.get_current_location(),
-                    "target_explore_x": x,
-                    "target_explore_y": y}
+        metadata = {
+            "begin_exploration_from": self._graph.get_current_location(),
+            "target_explore_x": x,
+            "target_explore_y": y,
+        }
         metadata.update(map_metadata)
 
         vlm_request = self._msg_handler.build_vlm_query_dict(self.open_scene_prompt)
 
         return [explore_request] + map_request + vlm_request, metadata
-        
 
     def _build_attempt_navigate_requests(
         self,
@@ -194,8 +216,8 @@ class ActionManager:
         return [
             {
                 "behavior": ("map_region", "str"),
-                "map_x": (coords[0], 'float'),
-                "map_y": (coords[1], "float")
+                "map_x": (coords[0], "float"),
+                "map_y": (coords[1], "float"),
             }
         ], {}
 
@@ -224,7 +246,7 @@ class ActionManager:
         explore_results = result[0]
         map_results = result[1]
         vlm_results = result[2]
-        explore_success = explore_results['success'][0]
+        explore_success = explore_results["success"][0]
         source_node = metadata["begin_exploration_from"]
         x = metadata["target_explore_x"]
         y = metadata["target_explore_y"]
@@ -233,32 +255,36 @@ class ActionManager:
 
         map_success = False
         if explore_success:
-            n_discovered = len([n for n in region_nodes if 'discovered' in n])
+            n_discovered = len([n for n in region_nodes if "discovered" in n])
 
-            new_node = {"name": f"discovered_node_{n_discovered+1}",
-                        "type": "region",
-                        "coords": [float(x), float(y)],
-                        "edges": [source_node]
+            new_node = {
+                "name": f"discovered_node_{n_discovered+1}",
+                "type": "region",
+                "coords": [float(x), float(y)],
+                "edges": [source_node],
             }
-            self._graph.update_with_node(node=f"discovered_node_{n_discovered+1}",
-                                         attrs={"type":"region", "coords": [float(x), float(y)]},
-                                         edges=[source_node])
+            self._graph.update_with_node(
+                node=f"discovered_node_{n_discovered+1}",
+                attrs={"type": "region", "coords": [float(x), float(y)]},
+                edges=[source_node],
+            )
 
             self._prompt_former.update(new_nodes=[new_node])
-            self._log_info(f"[action mananger][explore to coord] adding node: {new_node}")
+            self._log_info(
+                f"[action mananger][explore to coord] adding node: {new_node}"
+            )
 
             self._graph_viz.set_graph(self._graph.get_graph())
 
             metadata["region_node"] = new_node["name"]
             map_success = self._parse_map_result(map_results, metadata)
 
-
             metadata["vlm_target"] = new_node["name"]
 
             self._parse_vlm_result(vlm_results, metadata)
 
         return explore_success and map_success
-    
+
     def _parse_map_result(self, map_region_results: dict, metadata: dict) -> bool:
         region_node = metadata["region_node"]
         # filter empty results
@@ -270,7 +296,6 @@ class ActionManager:
         self._add_new_neighbors(node_id=region_node, new_neighbors=new_neighbors)
 
         return True
-
 
     def _parse_map_region_results(self, results: List[dict], metadata: dict) -> bool:
         if "target_nodes" not in metadata or "region_node" not in metadata:
@@ -314,7 +339,11 @@ class ActionManager:
         existing_neighbors = self._graph.get_neighbors(node_id)
         current_connections = existing_neighbors + [node_id]
 
-        new_neighbors = [neighbor for neighbor in new_neighbors if neighbor not in current_connections]
+        new_neighbors = [
+            neighbor
+            for neighbor in new_neighbors
+            if neighbor not in current_connections
+        ]
 
         if len(new_neighbors) == 0:
             return []
@@ -329,7 +358,9 @@ class ActionManager:
         attrs = {"coords": coords, "type": node_type}
         self._graph.update_with_node(node=node_id, edges=all_neighbors, attrs=attrs)
 
-        self._log_info(f"[action mananger][explore to] adding neighbors: {new_connections}")
+        self._log_info(
+            f"[action mananger][explore to] adding neighbors: {new_connections}"
+        )
 
         self._graph_viz.set_graph(self._graph.get_graph())
 
@@ -581,7 +612,7 @@ class ActionManager:
             else:
                 self._prompt_former.update(
                     freeform_updates=[
-                        f"could not navigate between [{current_node}, {target_node}]. Connection is likely blocked."
+                        f"could not navigate between [{current_node}, {target_node}]. Connection is likely blocked or this robot {self._robot_name} is not functional."
                     ]
                 )
                 self._graph.remove_edge(current_node, target_node)

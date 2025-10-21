@@ -45,8 +45,8 @@ def explore_to_node(region_node: str, ugv_type=["any", "jackal", "husky", "spot"
     ONLY call this if there is no existing path"""
 
 
-def uav_fly_to(region_node: str) -> bool:
-    """Fly to a node in the graph."""
+def uav_map(region_node: str) -> bool:
+    """Fly to a node in the graph and map that area. Returns map updates"""
 
 
 def uav_explore_to(x: float, y: float) -> str:

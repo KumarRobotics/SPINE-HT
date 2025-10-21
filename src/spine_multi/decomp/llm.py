@@ -14,6 +14,7 @@ from spine_multi.decomp.base_prompt import build_prompt
 from spine_multi.decomp.util import _parse_function_call
 from spine_multi.planner_logging import break_long_str
 
+import tiktoken
 
 SEED = 10
 
@@ -55,13 +56,17 @@ class GPT5Client:
             print(f"got exception when querying llm: {ex}")
             return {}
 
-
 class GPT4Client:
     def __init__(self, msg_history: List[dict], expected_keys: List[str]):
         self.client = OpenAI()
         self.model = "gpt-4.1"  # "gpt-4.1"
         self._msg_history = msg_history
         self.EXPECTED_KEYS = expected_keys
+
+
+        self._tokenizer = tiktoken.get_encoding("o200k_base")
+        self._total_tokens = 0
+        self._home_dir = Path().home() / "spine_token_log.txt"
 
     def query_llm(self, msg: List[Dict[str, str]]) -> Dict:
         try:
@@ -81,6 +86,15 @@ class GPT4Client:
 
             for key in self.EXPECTED_KEYS:
                 assert key in top_msg_dict.keys(), f"{key} not in graph"
+
+
+            self._total_tokens += len(self._tokenizer.encode(str(msg)))
+            self._total_tokens += len(self._tokenizer.encode(str(top_msg)))
+
+            with open(str(self._home_dir), "a") as f:
+                f.write(f"total tokens for spine: {self._total_tokens}\n")
+
+
 
             self._msg_history.append({"role": "assistant", "content": top_msg})
 
@@ -185,6 +199,7 @@ class MissionDecomp:
             if len(dep) >= 2:
                 cleaned_deps.append(dep)
 
+
         for task in tasks:
             graph.add_node(task)
             start_nodes.add(task)
@@ -192,7 +207,7 @@ class MissionDecomp:
         for source, target in cleaned_deps:
             graph.add_node(source)
             graph.add_node(target)
-            start_nodes.add(target)
+            start_nodes.add(source)
 
         for source, target in cleaned_deps:
             graph.add_edge(source, target)
@@ -200,10 +215,6 @@ class MissionDecomp:
 
         for node in start_nodes:
             graph.add_edge("start", node)
-
-
-        if self._logger is not None:
-            self._logger.info(f"Start nodes: {start_nodes}. All nodes: {graph.nodes}")
 
         return graph
 
@@ -244,6 +255,7 @@ class MissionDecomp:
         all_traces = []
         log_output = f"leaf nodes: {leaf_nodes}. all nodes: {all_nodes}"
         for leaf_node in leaf_nodes:
+            self._log_info(f"Attemping to build trace from leaf: {leaf_node}")
             try:
                 mission_trace = list(
                     nx.all_simple_paths(graph, source="start", target=leaf_node)
@@ -252,6 +264,7 @@ class MissionDecomp:
                 log_output += f"\nGot trace: {mission_trace} of len {len(mission_trace)} for leaf: {leaf_node}"
             except Exception as ex:
                 # TODO log warning
+                self._log_info(f"[parse trace] [EXCEPTION] {ex}")
                 return []
                 # raise ValueError(
                 #     f"Graph is ill-formed. Has leaf nodes: {leaf_node}: {graph}"
@@ -320,7 +333,34 @@ class MissionDecomp:
 
 if __name__ == "__main__":
 
-    def build_graph(tasks, deps):
+    # def build_graph(tasks, deps):
+    #     graph = nx.DiGraph()
+    #     graph.add_node("start")
+    #     start_nodes = set()
+
+    #     cleaned_deps = []
+    #     for dep in deps:
+    #         dep = [d for d in dep if d != ""]
+    #         if len(dep) >= 2:
+    #             cleaned_deps.append(dep)
+
+    #     for task in tasks:
+    #         graph.add_node(task)
+    #         start_nodes.add(task)
+
+    #     for source, target in cleaned_deps:
+    #         graph.add_edge(source, target)
+    #         start_nodes.add(source)
+    #         start_nodes.discard(target)
+
+    #     for node in start_nodes:
+    #         graph.add_edge("start", node)
+
+    #     return graph
+
+
+
+    def build_graph(tasks: List[str], deps) -> nx.DiGraph:
         graph = nx.DiGraph()
         graph.add_node("start")
         start_nodes = set()
@@ -331,13 +371,18 @@ if __name__ == "__main__":
             if len(dep) >= 2:
                 cleaned_deps.append(dep)
 
+
         for task in tasks:
             graph.add_node(task)
             start_nodes.add(task)
 
         for source, target in cleaned_deps:
-            graph.add_edge(source, target)
+            graph.add_node(source)
+            graph.add_node(target)
             start_nodes.add(source)
+
+        for source, target in cleaned_deps:
+            graph.add_edge(source, target)
             start_nodes.discard(target)
 
         for node in start_nodes:
@@ -345,15 +390,17 @@ if __name__ == "__main__":
 
         return graph
 
-    deps = [["ugv_map_region(region_node='region_1', ugv_type='spot')", "ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')"]]
+    deps = [
+        ["uav_map(region_node='ground_9')", "ugv_map_region(region_node='road_1_from_uav', ugv_type='spot')"], 
+        ["uav_map(region_node='ground_9')", "ugv_map_region(region_node='road_2_from_uav', ugv_type='spot')"],
+        [
+            "ugv_map_region(region_node='region_1', ugv_type='spot')",
+            "ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')",
+        ]
+    ]
 
-    tasks = ["ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')"]
+    tasks = ["ugv_map_region(region_node='road_1_from_uav', ugv_type='spot')", "ugv_map_region(region_node='road_2_from_uav', ugv_type='spot')"]
+
     # tasks = ["ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')", "ugv_inspect(object_node='discovered_cone_0', query='Describe the cone', ugv_type='spot')"]
 
     build_graph(tasks, deps)
-
-
-
-
-
-

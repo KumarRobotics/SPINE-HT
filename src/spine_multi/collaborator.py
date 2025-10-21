@@ -43,7 +43,7 @@ SPOT_CAPABILITIES = [
     "explore_to_node",
     "spot",
 ]
-FALCON_4_CAPABILITIES = ["uav_goto", "uav_map", "uav_explore"]
+FALCON_4_CAPABILITIES = ["uav_map", "uav_explore_to"]
 
 
 # TODO should go into src
@@ -100,6 +100,8 @@ def get_capability_set(robot_name, robot_type):
         return HUSKY_CAPABILITIES + [robot_name]
     elif robot_type == "spot":
         return SPOT_CAPABILITIES + [robot_name]
+    elif robot_type == "uav":
+        return FALCON_4_CAPABILITIES + [robot_name]
     else:
         raise ValueError(f"{robot_type} not supported")
 
@@ -132,6 +134,9 @@ class Collaborator:
 
         # used for reassigning  tasks
         self._iteration_trace = None
+
+    def has_mission(self) -> bool:
+        return True if self._mission_decomp._mission_specification != "" else False
 
     def init_planner(self, mission_specifications: str) -> None:
         self._mission_decomp.set_specifications(
