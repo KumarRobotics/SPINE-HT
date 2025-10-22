@@ -34,8 +34,22 @@ def generate_launch_description():
     declare_should_bag_arg = DeclareLaunchArgument(
         "record", default_value="false", description="Use simulation time"
     )
+    declare_scale_depth_arg = DeclareLaunchArgument(
+        "scale_depth", default_value="False", description="scale depth images"
+    )
     declare_detection_confidence_arg = DeclareLaunchArgument(
-        "detection_confidence", default_value="0.5", description="detection confidence"
+        "detection_confidence", default_value="0.3", description="detection confidence"
+    )
+    declare_tracker_number_arg = DeclareLaunchArgument(
+        "tracker_n_dets", default_value="5", description="number of detections for a valid track"
+    )
+    declare_model_choice_arg = DeclareLaunchArgument(
+        "model_choice", default_value="large", description="Model choice for Florence (base or large)"
+    )
+    declare_camera_transform_arg = DeclareLaunchArgument(
+        "camera_transform",
+        default_value="zed_camera",
+        description="which camera transform to use",
     )
     declare_use_mocha_arg = DeclareLaunchArgument(
         "use_mocha", default_value="false", description="use mocha"
@@ -55,7 +69,11 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_mocha = LaunchConfiguration("use_mocha")
     record = LaunchConfiguration("record")
+    scale_depth = LaunchConfiguration("scale_depth")
     detection_confidence = LaunchConfiguration("detection_confidence")
+    tracker_n_dets = LaunchConfiguration("tracker_n_dets")
+    model_choice = LaunchConfiguration("model_choice")
+    camera_transform = LaunchConfiguration("camera_transform")
     subscription_prefix = LaunchConfiguration("subscription_prefix")
     start_y = LaunchConfiguration("start_y")
     ground_grid_z_threshold = LaunchConfiguration("ground_grid_z_threshold")
@@ -130,6 +148,11 @@ def generate_launch_description():
                     ("input_depth_topic", "/zed/zed_node/depth/depth_registered"),
                     ("camera_info_topic", "/zed/zed_node/depth/camera_info"),
                     ("confidence", detection_confidence),
+                    ("tracker_n_dets", tracker_n_dets),
+                    ("model_choice", model_choice),
+                    ("camera_transform", camera_transform),
+                    ("scale_depth", scale_depth),
+                    ("labels", "Persons and Vehicles"),
                 ],
             ),
             Node(
@@ -163,6 +186,10 @@ def generate_launch_description():
         declare_robot_name_arg,
         declare_use_sim_time_arg,
         declare_use_mocha_arg,
+        declare_tracker_number_arg,
+        declare_model_choice_arg,
+        declare_camera_transform_arg,
+        declare_scale_depth_arg,
         declare_should_bag_arg,
         declare_detection_confidence_arg,
         declare_subscription_prefix_arg,
