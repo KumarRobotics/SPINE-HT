@@ -34,8 +34,10 @@ import json
 
 from bosdyn.client.math_helpers import SE2Pose
 
-from spot_executor.spot import Spot
-from spot_skills.navigation_utils import navigate_to_absolute_pose, follow_trajectory_continuous
+from spot_client.spot import Spot
+
+# from spot_executor.spot import Spot
+# from spot_skills.navigation_utils import navigate_to_absolute_pose, follow_trajectory_continuous
 
 
 
@@ -98,9 +100,9 @@ class SpotAutonomyManager(Node):
             self.get_parameter("costmap_topic").get_parameter_value().string_value
         )
 
-        spot_username = os.environ['ADT4_BOSDYN_USERNAME']
-        spot_ip = os.environ['ADT4_BOSDYN_IP']
-        spot_pwd = os.environ['ADT4_BOSDYN_PASSWORD']
+        spot_username = os.environ['SPOT_USERNAME']
+        spot_ip = os.environ['SPOT_IP']
+        spot_pwd = os.environ['SPOT_PASSWORD']
 
         self._spot_client = Spot(username=spot_username, ip=spot_ip, password=spot_pwd)
         self._spot_client.sit()
@@ -223,11 +225,6 @@ class SpotAutonomyManager(Node):
 
         self._tf_broadcaster.sendTransform(transform)
 
-
-
-
-
-    
     def _graph_cbk(self, msg: String):
         graph_as_str = msg.data 
 
@@ -405,7 +402,18 @@ class LabelServiceTranslator:
         )
 
         self._in_progress = True
+        # self._progress_idx = 0
+        # finished = follow_trajectory_continuous(
+        #     spot=self._spot_client,
+        #     waypoints_list=segments, 
+        #     lookahead_distance=2.0, 
+        #     goal_tolerance= self._goal_tol,
+        #     timeout=timeout_sec,
+        #     feedback = self,
+        #     )
 
+        # if check_yaw:
+ 
         while self._in_progress:
             self._log_info("[nav manager] waiting for goal to complete")
             time.sleep(5)
@@ -463,19 +471,6 @@ class SpotNavigationComponent:
         self._goal_successful = False
         self._progress_idx = 0
 
-    def print(self, level, msg):
-        # total hack for spot tools
-        self._progress_idx += 1
-        if self._progress_idx % 500 == 0:
-            self._log_info(f"{level}: {msg}")
-
-    def path_following_progress_feedback(self, current_point, goal_point):
-        # total hack for spot tools
-        self._progress_idx += 1
-        if self._progress_idx % 500 == 0:
-            self._log_info(f"{current_point}: {goal_point}")
-
-
     def _log_info(self, msg: str) -> None:
         self._parent_node.get_logger().info(f"[navigation component action] {msg}")
 
@@ -488,50 +483,55 @@ class SpotNavigationComponent:
         timeout_sec: Optional[float | None] = 15.0,
         check_yaw: Optional[bool] = False,
     ) -> Tuple[bool, str]:
-
         goal_world = SE2Pose(x=x, y=y, angle=yaw)
-
         goal = pose_on_start * goal_world
-
         self._log_info(f"goal world: {goal_world}, goal: {goal}, start: {pose_on_start}")
-
 
         current_pose = self._spot_client.get_pose()[:2].reshape(1, 2)
         goal_np = np.array([goal.x, goal.y]).reshape(1,2)
-
-
-        dist = np.linalg.norm(goal_np - current_pose)
+        heading_vec = goal_np - current_pose
+        dist = np.linalg.norm(heading_vec)
 
         # assume spot can move at 0.25m/s min 
         min_spot_speed = 0.25
         timeout_sec = dist / min_spot_speed
         self._log_info(f"Timeout is: {timeout_sec}")
 
-        segment_size = 1.0
+        if not check_yaw:
+            yaw = float(np.arctan2(heading_vec[:, 1], heading_vec[:, 0]))
+            self._log_info(f"setting navigation yaw to: {yaw}")
 
-        
-        segments = np.linspace(current_pose, goal_np, int((dist / segment_size) + 1)).squeeze().reshape(-1,2)
+        # segment_size = 1.0
+        # segments = np.linspace(current_pose, goal_np, int((dist / segment_size) + 1)).squeeze().reshape(-1,2)
+        # if len(segments) == 1:
+        #     segments = np.vstack([current_pose, segments])
+        # self._log_info(f"segments: {segments}, shape: {segments.shape}")
 
-        if len(segments) == 1:
-            segments = np.vstack([current_pose, segments])
+        success, is_taken_over = self._spot_client.safe_navigate_to_pose(
+            x=x,
+            y=y,
+            yaw=yaw,
+            timeout_sec=timeout_sec,
+            goal_tol=self._goal_tol
 
-        self._log_info(f"segments: {segments}, shape: {segments.shape}")
+        )
 
-        self._progress_idx = 0
-        finished = follow_trajectory_continuous(
-            spot=self._spot_client,
-            waypoints_list=segments, 
-            lookahead_distance=2.0, 
-            goal_tolerance= self._goal_tol,
-            timeout=timeout_sec,
-            feedback = self,
-            )
+        if isinstance(success, tuple):
+            self._log_info(f"Safe nav returned {success}")
+            success = success[0]
 
-        if check_yaw:
-            navigate_to_absolute_pose(self._spot_client, goal)
+        # self._progress_idx = 0
+        # finished = follow_trajectory_continuous(
+        #     spot=self._spot_client,
+        #     waypoints_list=segments, 
+        #     lookahead_distance=2.0, 
+        #     goal_tolerance= self._goal_tol,
+        #     timeout=timeout_sec,
+        #     feedback = self,
+        #     )
 
-        current_pose = self._spot_client.get_pose()[:2].reshape(1, 2)
-        success = np.linalg.norm(goal_np - current_pose) < self._goal_tol
+        # if check_yaw:
+        #     navigate_to_absolute_pose(self._spot_client, goal)
 
         return success, ""
 

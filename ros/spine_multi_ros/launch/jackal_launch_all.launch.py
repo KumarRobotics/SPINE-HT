@@ -57,6 +57,9 @@ def generate_launch_description():
     declare_start_y_arg = DeclareLaunchArgument(
         "start_y", default_value="0.0", description="starting y"
     )
+    declare_start_x_arg = DeclareLaunchArgument(
+        "start_x", default_value="0.0", description="starting x"
+    )
     declare_ground_ground_z_threshold_arg = DeclareLaunchArgument(
         "ground_grid_z_threshold", default_value="2.5", description="z threshold"
     )
@@ -76,6 +79,7 @@ def generate_launch_description():
     camera_transform = LaunchConfiguration("camera_transform")
     subscription_prefix = LaunchConfiguration("subscription_prefix")
     start_y = LaunchConfiguration("start_y")
+    start_x = LaunchConfiguration("start_x")
     ground_grid_z_threshold = LaunchConfiguration("ground_grid_z_threshold")
  
 
@@ -120,7 +124,8 @@ def generate_launch_description():
                 launch_arguments=[
                     # ("use_sim_time", use_sim_time),
                     ("robot_map_frame", robot_map_frame),
-                    ("start_y", start_y)
+                    ("start_y", start_y),
+                    ("start_x", start_x)
                 ],
             ),
             Node(
@@ -194,6 +199,7 @@ def generate_launch_description():
         declare_detection_confidence_arg,
         declare_subscription_prefix_arg,
         declare_start_y_arg,
+        declare_start_x_arg,
         declare_ground_ground_z_threshold_arg,
         namespaced_group,
     ]

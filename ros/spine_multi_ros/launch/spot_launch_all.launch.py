@@ -6,7 +6,7 @@ from launch import LaunchDescription
 from launch.conditions import IfCondition
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, PushRosNamespace
+from launch_ros.actions import Node, PushRosNamespace, SetRemap
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -37,73 +37,112 @@ def generate_launch_description():
         "record", default_value="false", description="Use simulation time"
     )
     declare_detection_confidence_arg = DeclareLaunchArgument(
-        "detection_confidence", default_value="0.5", description="detection confidence"
+        "detection_confidence", default_value="0.3", description="detection confidence"
+    )
+    declare_tracker_number_arg = DeclareLaunchArgument(
+        "tracker_n_dets", default_value="5", description="number of detections for a valid track"
+    )
+    declare_model_choice_arg = DeclareLaunchArgument(
+        "model_choice", default_value="large", description="Model choice for Florence (base or large)"
+    )
+    declare_camera_transform_arg = DeclareLaunchArgument(
+        "camera_transform",
+        default_value="spot_camera",
+        description="which camera transform to use",
     )
     declare_use_mocha_arg = DeclareLaunchArgument(
         "use_mocha", default_value="false", description="use mocha"
     )
-    declare_start_y_arg = DeclareLaunchArgument(
-        "start_y", default_value="start_y", description="starting y"
+    declare_scale_depth_arg = DeclareLaunchArgument(
+        "scale_depth", default_value="True", description="scale depth images"
     )
+    declare_start_y_arg = DeclareLaunchArgument(
+        "start_y", default_value="0.0", description="starting y"
+    )
+    declare_start_x_arg = DeclareLaunchArgument(
+        "start_x", default_value="0.0", description="starting y"
+    )
+
+
 
     # args for launching
     namespace = LaunchConfiguration("namespace")
     robot_name = LaunchConfiguration("robot_name")
     use_mocha = LaunchConfiguration("use_mocha")
+    scale_depth = LaunchConfiguration("scale_depth")
     record = LaunchConfiguration("record")
     detection_confidence = LaunchConfiguration("detection_confidence")
+    tracker_n_dets = LaunchConfiguration("tracker_n_dets")
+    model_choice = LaunchConfiguration("model_choice")
+    camera_transform = LaunchConfiguration("camera_transform")
     subscription_prefix = LaunchConfiguration("subscription_prefix")
     start_y = LaunchConfiguration("start_y")
+    start_x = LaunchConfiguration("start_x")
 
     # get pkgs and configs
     pkg_spine_multi = get_package_share_directory("spine_multi_ros")
     jackal_static_transforms = PathJoinSubstitution(
-        [pkg_spine_multi, "launch", "jackal_static_transforms.launch.py"]
+        [pkg_spine_multi, "launch", "spot_static_transforms.launch.py"]
     )
     vision_pkg = get_package_share_directory("vision_ros2")
     launch_vision = PathJoinSubstitution(
         [vision_pkg, "launch", "vision_jackal.launch.py"]
     )
+    spot_client_pkg = get_package_share_directory("spot_client_ros")
+    spot_camera_launch = PathJoinSubstitution(
+        [spot_client_pkg, "launch", "spot_sensors.launch.yaml"]
+    )
 
     robot_map_frame = ["map_", robot_name]
 
-    zed_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('zed_wrapper'),
-                'launch',
-                'zed_camera.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'camera_model': 'zed2i',
-            'publish_tf': 'false',
-            'publish_map_tf': 'false',
-            'namespace': namespace
-        }.items()
-    )
+
+    # zed_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource([
+    #         PathJoinSubstitution([
+    #             FindPackageShare('zed_wrapper'),
+    #             'launch',
+    #             'zed_camera.launch.py'
+    #         ])
+    #     ]),
+    #     launch_arguments={
+    #         'camera_model': 'zed2i',
+    #         'publish_tf': 'false',
+    #         'publish_map_tf': 'false',
+    #         'namespace': namespace
+    #     }.items()
+    # )
  
 
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
             #PushRosNamespace(LaunchConfiguration("namespace")),
+             SetRemap(src="/dlio/odom_node/odom", dst="/odom"),  
              IncludeLaunchDescription(
                  jackal_static_transforms,
                  launch_arguments=[
                      # ("use_sim_time", use_sim_time),
                      ("robot_map_frame", robot_map_frame),
-                     ("start_y", start_y)
+                     ("start_y", start_y),
+                     ("start_x", start_x)
                  ],
             ),
-            zed_launch,
+            IncludeLaunchDescription(
+                spot_camera_launch
+            ),
             IncludeLaunchDescription(
                 launch_vision,
                 launch_arguments=[
-                    ("input_rgb_topic", "/zed/zed_node/left/image_rect_color"),
-                    ("input_depth_topic", "/zed/zed_node/depth/depth_registered"),
-                    ("camera_info_topic", "/zed/zed_node/depth/camera_info"),
+                    ("input_rgb_topic", "/prometheus/frontleft/color/image_raw"),
+                    ("input_depth_topic", "/prometheus/frontleft/depth/image_rect"),
+                    ("camera_info_topic", "/prometheus/frontleft/color/camera_info"),
+                    ("camera_frame", "promethues/frontleft"),
                     ("confidence", detection_confidence),
+                    ("model_choice", model_choice),
+                    ("camera_transform", camera_transform),
+                    ("tracker_n_dets", tracker_n_dets),
+                    ("scale_depth", scale_depth),
+                    ("labels", "Persons and Vehicles"),
                 ],
             ),
             Node(
@@ -119,17 +158,22 @@ def generate_launch_description():
         declare_robot_namespace_arg,
         declare_robot_name_arg,
         declare_use_mocha_arg,
+        declare_scale_depth_arg,
         declare_should_bag_arg,
+        declare_camera_transform_arg,
         declare_detection_confidence_arg,
+        declare_tracker_number_arg,
+        declare_model_choice_arg,
         declare_subscription_prefix_arg,
         declare_start_y_arg,
+        declare_start_x_arg,
         namespaced_group,
     ]
 
     record_launch_path = PathJoinSubstitution(
         [pkg_spine_multi, "launch", "record_spot.launch.py"]
     )
-    bag_name = get_log_dir()
+    bag_name = get_log_dir(user="dcist")
     launch_record = IncludeLaunchDescription(
         record_launch_path,
         condition=IfCondition(record),
@@ -161,8 +205,9 @@ def generate_launch_description():
 
 
 
-def get_log_dir() -> str:
-    log_dir = Path.home() / "data/bags"
+def get_log_dir(user: str) -> str:
+    # TODO tmp hardcode due to docker root requirements
+    log_dir =  Path(f"/home/{user}/data/bags")
     log_dir.mkdir(exist_ok=True, parents=True)
 
     n_bags = len(list(log_dir.glob("*")))
