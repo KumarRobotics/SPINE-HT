@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+from pathlib import Path
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.conditions import IfCondition
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, PushRosNamespace
-
-from pathlib import Path
-from datetime import datetime
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -19,9 +19,7 @@ def generate_launch_description():
         description="Namespace for the robot (empty for no namespace)",
     )
     declare_robot_name_arg = DeclareLaunchArgument(
-        "robot_name",
-        default_value="",
-        description="robot name"
+        "robot_name", default_value="", description="robot name"
     )
     declare_subscription_prefix_arg = DeclareLaunchArgument(
         "subscription_prefix",
@@ -41,10 +39,14 @@ def generate_launch_description():
         "detection_confidence", default_value="0.3", description="detection confidence"
     )
     declare_tracker_number_arg = DeclareLaunchArgument(
-        "tracker_n_dets", default_value="5", description="number of detections for a valid track"
+        "tracker_n_dets",
+        default_value="5",
+        description="number of detections for a valid track",
     )
     declare_model_choice_arg = DeclareLaunchArgument(
-        "model_choice", default_value="large", description="Model choice for Florence (base or large)"
+        "model_choice",
+        default_value="large",
+        description="Model choice for Florence (base or large)",
     )
     declare_camera_transform_arg = DeclareLaunchArgument(
         "camera_transform",
@@ -61,10 +63,10 @@ def generate_launch_description():
         "start_x", default_value="0.0", description="starting x"
     )
     declare_ground_ground_z_threshold_arg = DeclareLaunchArgument(
-        "ground_grid_z_threshold", default_value="2.5", description="z threshold"
+        "ground_grid_z_threshold",
+        default_value="1.5",
+        description="z threshold- all points in the ouster cloud above this height will be ignored by the ground grid (1.5 work best for tall scafoldings)",
     )
-
-
 
     # args for launching
     namespace = LaunchConfiguration("namespace")
@@ -72,16 +74,10 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_mocha = LaunchConfiguration("use_mocha")
     record = LaunchConfiguration("record")
-    scale_depth = LaunchConfiguration("scale_depth")
-    detection_confidence = LaunchConfiguration("detection_confidence")
-    tracker_n_dets = LaunchConfiguration("tracker_n_dets")
-    model_choice = LaunchConfiguration("model_choice")
-    camera_transform = LaunchConfiguration("camera_transform")
     subscription_prefix = LaunchConfiguration("subscription_prefix")
     start_y = LaunchConfiguration("start_y")
     start_x = LaunchConfiguration("start_x")
     ground_grid_z_threshold = LaunchConfiguration("ground_grid_z_threshold")
- 
 
     # get pkgs and configs
     pkg_spine_multi = get_package_share_directory("spine_multi_ros")
@@ -89,7 +85,7 @@ def generate_launch_description():
         [pkg_spine_multi, "launch", "navigation_launch.py"]
     )
 
-    nav2_config_name = ["nav2_jackal.yaml"]
+    nav2_config_name = ["nav2_jackal_stvox.yaml"]
 
     nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", nav2_config_name])
     jackal_static_transforms = PathJoinSubstitution(
@@ -97,9 +93,8 @@ def generate_launch_description():
     )
 
     vision_pkg = get_package_share_directory("vision_ros2")
-    launch_vision = PathJoinSubstitution(
-        [vision_pkg, "launch", "vision_jackal.launch.py"]
-    )
+    launch_vision = PathJoinSubstitution([vision_pkg, "launch", "vision.launch.py"])
+    vision_config = PathJoinSubstitution([vision_pkg, "config", "jackal.yaml"])
 
     groundgrid_pkg = get_package_share_directory("groundgrid")
     launch_groundgrid = PathJoinSubstitution(
@@ -111,14 +106,14 @@ def generate_launch_description():
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
-            IncludeLaunchDescription( # TODO should this be namespaced too ?
+            IncludeLaunchDescription(  # TODO should this be namespaced too ?
                 launch_groundgrid,
                 launch_arguments=[
                     ("namespace", namespace),
-                    ("z_threshold", ground_grid_z_threshold)
+                    ("z_threshold", ground_grid_z_threshold),
                 ],
             ),
-            #PushRosNamespace(LaunchConfiguration("namespace")),
+            # PushRosNamespace(LaunchConfiguration("namespace")),
             IncludeLaunchDescription(
                 jackal_static_transforms,
                 launch_arguments=[
@@ -131,8 +126,13 @@ def generate_launch_description():
             Node(
                 package="topic_tools",
                 executable="throttle",
-                name=f"throttle_costmap",
-                arguments=["messages", "/local_costmap/costmap", "0.1", "/local_costmap/costmap_throttled" ],
+                name="throttle_costmap",
+                arguments=[
+                    "messages",
+                    "/local_costmap/costmap",
+                    "0.1",
+                    "/local_costmap/costmap_throttled",
+                ],
                 output="screen",
             ),
             IncludeLaunchDescription(
@@ -148,41 +148,46 @@ def generate_launch_description():
             ),
             IncludeLaunchDescription(
                 launch_vision,
-                launch_arguments=[
-                    ("input_rgb_topic", "/zed/zed_node/left/image_rect_color"),
-                    ("input_depth_topic", "/zed/zed_node/depth/depth_registered"),
-                    ("camera_info_topic", "/zed/zed_node/depth/camera_info"),
-                    ("confidence", detection_confidence),
-                    ("tracker_n_dets", tracker_n_dets),
-                    ("model_choice", model_choice),
-                    ("camera_transform", camera_transform),
-                    ("scale_depth", scale_depth),
-                    ("labels", "Persons and Vehicles"),
-                ],
+                launch_arguments=[("config_file", vision_config)],
             ),
-            Node(
-                package="spine_multi_ros",  # Replace with your package name
-                executable="twist_converter.py",
-                name="twist_converter",
-                remappings=[("cmd_vel", "autonomous/cmd_vel")],  # Remap output
-                parameters=[{"scale_x": 3.0},
-                            {"scale_z": 3.0}]
-            ),
-            Node(
-                package="safety_controller",
-                executable="safety_controller",
-                name="safety_controller",
-                remappings=[
-                    ("joy_teleop/joy", [robot_name, "/joy_teleop/joy"]),
-                    ("auto_mode/cmd_vel", [robot_name, "/auto_mode/cmd_vel"])
-                ]
-            ),
+            # Node(
+            #     package="spine_multi_ros",  # Replace with your package name
+            #     executable="twist_converter.py",
+            #     name="twist_converter",
+            #     remappings=[("cmd_vel", "autonomous/cmd_vel")],  # Remap output
+            #     parameters=[{"scale_x": 4.0},
+            #                 {"scale_z": 4.0}]
+            # ),
+            # Node(
+            #     package="safety_controller",
+            #     executable="safety_controller",
+            #     name="safety_controller",
+            #     remappings=[
+            #         ("joy_teleop/joy", [robot_name, "/joy_teleop/joy"]),
+            #         ("auto_mode/cmd_vel", [robot_name, "/auto_mode/cmd_vel"])
+            #     ]
+            # ),
             Node(
                 package="spine_multi_ros",
                 executable="jackal_autonomy_server.py",
                 name="jackal_autonomy_server",
-                parameters=[{"subscription_prefix": subscription_prefix}]
-            )
+                parameters=[{"subscription_prefix": subscription_prefix}],
+            ),
+            Node(
+                package="spine_multi_ros",
+                executable="convert_vel_to_joy.py",
+                name="cmd_vel_to_joy",
+            ),
+            Node(
+                package="spine_multi_ros",
+                executable="goal_frame_converter.py",
+                name="goal_frame_converter",
+                output="screen",
+                remappings=[
+                    ("/odom/local", "/dlio/odom_node/odom"),
+                    ("/odom/global", "/glider/odom"),
+                ],
+            ),
         ],
     )
 
@@ -213,32 +218,22 @@ def generate_launch_description():
     launch_record = IncludeLaunchDescription(
         record_launch_path,
         condition=IfCondition(record),
-        launch_arguments=[
-            ("namespace", namespace), 
-            ("output_bag", bag_name)
-        ]
+        launch_arguments=[("namespace", namespace), ("output_bag", bag_name)],
     )
     launch_process.append(launch_record)
 
     pkg_mocha = get_package_share_directory("mocha_launch")
-    mocha_launch_path = PathJoinSubstitution(
-        [pkg_mocha, "launch", "jackal.launch.py"]
-    )
+    mocha_launch_path = PathJoinSubstitution([pkg_mocha, "launch", "jackal.launch.py"])
 
     mocha_launch = IncludeLaunchDescription(
-            mocha_launch_path,
-            condition=IfCondition(use_mocha),
-            launch_arguments=[
-                ("robot_name", robot_name)
-            ],
-        )
+        mocha_launch_path,
+        condition=IfCondition(use_mocha),
+        launch_arguments=[("robot_name", robot_name)],
+    )
 
     launch_process.append(mocha_launch)
- 
-
 
     return LaunchDescription(launch_process)
-
 
 
 def get_log_dir() -> str:
@@ -247,7 +242,7 @@ def get_log_dir() -> str:
 
     n_bags = len(list(log_dir.glob("*")))
     bag_name = str(
-        log_dir / f"{n_bags:03d}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
+        log_dir
+        / f"{n_bags:03d}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
     )
     return bag_name
-

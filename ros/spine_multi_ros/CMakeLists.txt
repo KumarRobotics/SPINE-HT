@@ -37,6 +37,9 @@ install(PROGRAMS
   scripts/label_service_translator.py
   scripts/jackal_autonomy_server.py
   scripts/spot_autonomy_server.py
+  scripts/goto_nav2.py
+  scripts/convert_vel_to_joy.py
+  scripts/goal_frame_converter.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -84,7 +87,7 @@ ament_package()
 
 # # ament_python_install_package(${PROJECT_NAME})
 
-# add_executable(odom_tf_broadcaster 
+# add_executable(odom_tf_broadcaster
 #   src/odom_tf_broadcaster.cpp
 # )
 
@@ -110,9 +113,9 @@ ament_package()
 
 
 # # install(DIRECTORY
-# #   launch 
+# #   launch
 # #   config
-# #   DESTINATION share/${PROJECT_NAME}) 
+# #   DESTINATION share/${PROJECT_NAME})
 
 # if(BUILD_TESTING)
 #   find_package(ament_lint_auto REQUIRED)

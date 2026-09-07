@@ -6,8 +6,9 @@ log/
 build/
 install/
 .vscode/
-*rviz
 *json
 notebooks
 *yaml
 *bak
+!/ros/spine_multi_ros/config/rviz/jackal_nav2_test.rviz
+!/ros/spine_multi_ros/config/nav2_jackal_stvox.yaml

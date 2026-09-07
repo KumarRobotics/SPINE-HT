@@ -57,6 +57,8 @@ class SPINEMultiNode(Node):
         self._planning_limit = (
             self.get_parameter("planning_limit_idx").get_parameter_value().integer_value
         )
+        
+        self.declare_parameter("llm", "gpt4")
         self._llm_type = self.get_parameter("llm").get_parameter_value().string_value
 
         param_dict = self.get_parameters_by_prefix("robots")

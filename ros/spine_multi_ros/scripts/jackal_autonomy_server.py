@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 
+import json
 import math
+import threading
 import time
-from abc import ABC
 from concurrent.futures import Future
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Dict
-from nav_msgs.msg import OccupancyGrid
-from scipy.spatial.transform import Rotation
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import rclpy
 import rclpy.task
+from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
+from nav_msgs.msg import OccupancyGrid
 from rcl_interfaces.msg import Parameter, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from rclpy.action import ActionClient
@@ -21,14 +22,15 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from spine_multi.parsing import ListDictParser
-from std_msgs.msg import Int16, String
-from teaming_msgs.msg import BehaviorRequest, BehaviorResult, GoalRequest, GoalStatus
-from teaming_msgs.srv import SetLabels, Query
-from spine_multi.spine.mapping.frontiers import FrontierExtractor, Node as GraphNode
-from spine_multi.spine.mapping.graph_util import GraphHandler, parse_graph
+from scipy.spatial.transform import Rotation
 from spine_multi_ros.progress_checker import ProgressChecker
-import json
+from std_msgs.msg import Int16, String
+from teaming_msgs.msg import BehaviorRequest, BehaviorResult
+from teaming_msgs.srv import Query, SetLabels, TransformGoal
+
+from spine_multi.parsing import ListDictParser
+from spine_multi.spine.mapping.frontiers import FrontierExtractor
+from spine_multi.spine.mapping.graph_util import GraphHandler
 
 
 class GoalStatusEnum(Enum):
@@ -64,14 +66,15 @@ class JackalAutonomyManager(Node):
             parameters=[
                 ("navigation_action_server", "navigate_to_pose"),
                 ("navigation_request", "navigation_request"),
-                (f"robot_name", ""),
+                ("robot_name", ""),
                 ("frame_id", "map"),
                 ("parameter_server", "controller_server/set_parameters"),
                 ("subscription_prefix", ""),
                 ("label_service", "/detector/set_labels"),
                 ("vlm_service", "vlm_node/query_scene"),
                 ("costmap_topic", "local_costmap/costmap"),
-                ("use_vision", True)
+                ("use_vision", True),
+                ("use_utm", True),
             ],
         )
 
@@ -89,6 +92,7 @@ class JackalAutonomyManager(Node):
             self.get_parameter("costmap_topic").get_parameter_value().string_value
         )
         use_vision = self.get_parameter("use_vision").get_parameter_value().bool_value
+        self.use_utm = self.get_parameter("use_utm").get_parameter_value().bool_value
 
         self._parser = ListDictParser()
 
@@ -122,9 +126,8 @@ class JackalAutonomyManager(Node):
             self._response_ack,
             qos_profile,
             callback_group=response_ack_cbk,
-        )        
-        
-        
+        )
+
         self._graph = GraphHandler("")
         self._frontier_extractor = FrontierExtractor(init_graph=self._graph)
 
@@ -143,7 +146,7 @@ class JackalAutonomyManager(Node):
             "/basestation/graph",
             self._graph_cbk,
             qos_profile,
-            callback_group=graph_cbk_group
+            callback_group=graph_cbk_group,
         )
 
         self._log_info("created pub / sub")
@@ -160,28 +163,27 @@ class JackalAutonomyManager(Node):
                 parent_node=self,
                 vlm_service=vlm_service_name,
             )
-            self._log_info(f"VLM init")
-
+            self._log_info("VLM init")
 
         # navigation
-        self._nav_component = JackalNavigationComponent(parent_node=self)
+        self._nav_component = JackalNavigationComponent(
+            parent_node=self, use_utm=self.use_utm
+        )
 
         self._log_info("init")
 
-    
     def _graph_cbk(self, msg: String):
-        graph_as_str = msg.data 
+        graph_as_str = msg.data
 
         if len(self._graph.graph.nodes) == 0:
             self._log_info(f"Have initial graph: {graph_as_str}")
- 
+
         try:
             graph = json.loads(graph_as_str)
             self._graph.reset(graph)
 
         except Exception as ex:
             self._log_info(f"could not parse graph; {ex}")
-
 
     def _costmap_cbk(self, costmap_msg: OccupancyGrid) -> None:
         # self.get_logger().info('[spine node] get costmap')
@@ -198,7 +200,7 @@ class JackalAutonomyManager(Node):
         costmap = np.array(costmap_msg.data).reshape(
             costmap_msg.info.height, costmap_msg.info.width
         )
-        filtered_costmap = self._frontier_extractor.update_costmap(
+        _ = self._frontier_extractor.update_costmap(
             costmap=costmap,
             resolution_m_p_cell=costmap_msg.info.resolution,
             pos=position,
@@ -251,6 +253,24 @@ class JackalAutonomyManager(Node):
 
         if msg.idx not in self._received_behaviors:
             self._received_behaviors.add(msg.idx)
+            # Dispatch to background thread — do NOT block the executor thread
+            t = threading.Thread(
+                target=self._safe_execute_behavior, args=(msg,), daemon=True
+            )
+            t.start()
+
+    def _safe_execute_behavior(self, msg: BehaviorRequest) -> None:
+        try:
+            self._execute_behavior(msg)
+        except Exception as e:
+            self._parent_node.get_logger().error(f"_execute_behavior CRASHED: {e}")
+            import traceback
+
+            self._parent_node.get_logger().error(traceback.format_exc())
+
+    def _execute_behavior(self, msg: BehaviorRequest) -> None:
+        if msg.idx not in self._received_behaviors:
+            self._received_behaviors.add(msg.idx)
             task_sequence = self._parser.parse(msg.behaviors.data)
 
             self._log_info(f"parsed task: {task_sequence}")
@@ -279,17 +299,18 @@ class JackalAutonomyManager(Node):
                         break
 
                 if behavior == "set_labels":
-                    self._log_info(f"calling set labels")
+                    self._log_info("calling set labels")
                     if self._use_vision:
                         incoming_labels = task["labels"][0]
                         labels = incoming_labels.replace("|", ",")
-                        result = self._set_labels_component.set_labels(
-                            labels, msg.idx
-                        )
+                        result = self._set_labels_component.set_labels(labels, msg.idx)
 
                         self._log_info(f"got labels call result : {result}")
                     else:
-                        result = {"behavior": ("set_labels", "str"), "success": (True, "bool")}
+                        result = {
+                            "behavior": ("set_labels", "str"),
+                            "success": (True, "bool"),
+                        }
 
                     outcomes.append(result)
 
@@ -307,7 +328,10 @@ class JackalAutonomyManager(Node):
                         result = {
                             "behavior": ("query_vlm", "str"),
                             "success": (success, "bool"),
-                            "answer": ("VLM unavailable on this robot. Cannot generate description", "str"),
+                            "answer": (
+                                "VLM unavailable on this robot. Cannot generate description",
+                                "str",
+                            ),
                         }
 
                     outcomes.append(result)
@@ -320,39 +344,40 @@ class JackalAutonomyManager(Node):
                     map_y = task["map_y"][0]
                     outcomes.append(self._try_add_edges(map_x, map_y))
 
-
-            self._log_info(f"at end of call")
+            self._log_info("at end of call")
 
             result_msg = self._build_result_msg(idx=msg.idx, data=outcomes)
             while msg.idx not in self._acked_results:
                 self._result_pub.publish(result_msg)
                 time.sleep(15)
                 self._log_info(f"pub response: {result_msg.result}")
-        
 
     def _try_add_edges(self, x: float, y: float) -> dict:
         COORD_THRESH = 25
         coords = np.array([x, y])
 
-        region_info = self._graph.get_region_nodes_and_locs()
+        _ = self._graph.get_region_nodes_and_locs()
 
         new_neighbor_candidates = self._frontier_extractor.get_neighbors(coords)
         new_neighbors = []
-
 
         self._log_info(f"neighbor candidates: {new_neighbor_candidates}")
 
         for neighbor in new_neighbor_candidates:
             neighbor_coords, _ = self._graph.get_node_coords(neighbor)
-            self._log_info(f"Potential neighbor is { np.linalg.norm(neighbor_coords - coords):0.2f} away")
+            self._log_info(
+                f"Potential neighbor is {np.linalg.norm(neighbor_coords - coords):0.2f} away"
+            )
             if np.linalg.norm(neighbor_coords - coords) < COORD_THRESH:
                 new_neighbors.append(neighbor)
 
         new_neighbors = "|".join(new_neighbors)
 
-        result = {"behavior": ("map_region", "str"),
-                  "success": (True, "bool"),
-                  "new_neighbors": (new_neighbors, "str")}
+        result = {
+            "behavior": ("map_region", "str"),
+            "success": (True, "bool"),
+            "new_neighbors": (new_neighbors, "str"),
+        }
 
         return result
 
@@ -426,13 +451,14 @@ class LabelServiceTranslator:
         #     data=[{"behavior": ("set_labels", "str"), "result": (success, "bool")}],
         # )
 
-        self._log_info(f"got set label response")
+        self._log_info("got set label response")
 
 
 class JackalNavigationComponent:
     def __init__(
         self,
         parent_node: Node,
+        use_utm: bool,
         frame_id: str = "map",
         goal_tol: Optional[float] = 2,
         navigation_action_server: Optional[str] = "navigate_to_pose",
@@ -441,6 +467,13 @@ class JackalNavigationComponent:
     ):
         self._parent_node = parent_node
         self._frame_id = frame_id
+        self._use_utm = use_utm
+
+        if self._use_utm:
+            self._goal_transformer_client = self._parent_node.create_client(
+                TransformGoal, "transform_goal_to_local"
+            )
+            self._goal_transformer_client.wait_for_service()
 
         client_group = ReentrantCallbackGroup()
         self._action_client = ActionClient(
@@ -462,12 +495,13 @@ class JackalNavigationComponent:
         )
 
         # robot must move at least 0.5m every 30 s
-        self._progress_checker = ProgressChecker(parent_node=parent_node,
-                                                world_frame="map",
-                                                robot_frame="base_link",
-                                                timeout_s=60,
-                                                 dist_tol=0.5,
-                                                 )
+        self._progress_checker = ProgressChecker(
+            parent_node=parent_node,
+            world_frame="map",
+            robot_frame="base_link",
+            timeout_s=60,
+            dist_tol=0.5,
+        )
 
         # Wait for action server to be available
         self._log_info(
@@ -490,6 +524,38 @@ class JackalNavigationComponent:
     def _log_info(self, msg: str) -> None:
         self._parent_node.get_logger().info(f"[navigation component action] {msg}")
 
+    def get_local_goal(
+        self, x: float, y: float, yaw: float = 0.0
+    ) -> tuple[float, float, float] | None:
+        goal = PoseStamped()
+        goal.header.stamp = self._parent_node.get_clock().now().to_msg()
+        goal.header.frame_id = "map"
+        goal.pose.position.x = x
+        goal.pose.position.y = y
+        q = Rotation.from_euler("z", yaw).as_quat()
+        goal.pose.orientation.x = q[0]
+        goal.pose.orientation.y = q[1]
+        goal.pose.orientation.z = q[2]
+        goal.pose.orientation.w = q[3]
+
+        req = TransformGoal.Request()
+        req.goal_global = goal
+
+        future = self._goal_transformer_client.call_async(req)
+        rclpy.spin_until_future_complete(self._parent_node, future)
+
+        res = future.result()
+        if not res.success:
+            self.get_logger().error(f"Transform failed: {res.message}")
+            return None
+
+        q_out = res.goal_local.pose.orientation
+        yaw_out = Rotation.from_quat([q_out.x, q_out.y, q_out.z, q_out.w]).as_euler(
+            "xyz"
+        )[2]
+
+        return (res.goal_local.pose.position.x, res.goal_local.pose.position.y, yaw_out)
+
     def navigate_and_wait(
         self,
         x: float,
@@ -498,6 +564,18 @@ class JackalNavigationComponent:
         timeout_sec: Optional[float | None] = None,
         check_yaw: Optional[bool] = False,
     ) -> Tuple[bool, str]:
+
+        if self._use_utm:
+            x, y, yaw = self.get_local_goal(x, y, yaw)
+            self._parent_node.get_logger().info(
+                f"[nav manager] Local goal: ({x}, {y}, {yaw})"
+            )
+
+        # TODO this is just for nav2 testing
+        x = 0.0
+        y = 0.0
+        yaw = 0.0
+
         self._in_progress = True
         self._goal_successful = False
         self._result_future = Future()
@@ -513,7 +591,7 @@ class JackalNavigationComponent:
                 self._parent_node.get_logger().info(
                     "[nav manager] [WARNING] cancelling goal"
                 )
- 
+
                 self._cancel_goal()
             time.sleep(5)
 
@@ -575,7 +653,7 @@ class JackalNavigationComponent:
         param.value.type = 3
         param.value.double_value = float(tolerance_radians)
 
-        self._log_info(f"formed msg")
+        self._log_info("formed msg")
 
         # Create request
         request = SetParameters.Request()
@@ -589,7 +667,7 @@ class JackalNavigationComponent:
 
     def _feedback_callback(self, feedback_msg):
         """Handle feedback from navigation"""
-        # self._parent_node.get_logger ().info(f"[nav client] feedback is running")
+        self._parent_node.get_logger().info("[nav client] feedback is running")
         feedback = feedback_msg.feedback
 
         # # Log current pose and navigation info
@@ -632,7 +710,7 @@ class JackalNavigationComponent:
 
     def _get_result_callback(self, future: rclpy.task.Future):
         """Handle final result from navigation"""
-        result = future.result().result
+        _ = future.result().result
         status = future.result().status
 
         success = False
@@ -687,9 +765,9 @@ class VLMServiceComponent:
             Query, vlm_service, callback_group=vlm_cbk_group
         )
 
-        self._log_info(f"waiting for VLM server...")
+        self._log_info("waiting for VLM server...")
         self._vlm_client.wait_for_service()
-        self._log_info(f"VLM is initialized")
+        self._log_info("VLM is initialized")
 
         self._in_progress = False
         self._result = {}

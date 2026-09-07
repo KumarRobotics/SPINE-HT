@@ -1,0 +1,32 @@
+imu:
+  covariances:
+    accelerometer: 0.01 #0.00001
+    gyroscope: 0.01 #0.00001
+    integration: 0.001
+    heading: 0.09
+    roll_pitch: 0.001
+    bias: 0.001
+  frame: "enu"
+gps:
+  covariance: 2.0
+dgps:
+  enable: true
+  covariance: 0.03
+dgpsfm:
+  enable: false
+  integration_threshold: 1.0
+  covariance: 0.03
+constants:
+  gravity: 9.81
+  bias_num_measurements: 100
+  initial_num_measurements: 4
+logging:
+  stdout: true
+  directory: "/tmp/glider"
+optimizer:
+  smooth: true
+  lag_time: 5.0
+gps_to_imu:
+  x: 0.0
+  y: 0.0
+  z: 0.0

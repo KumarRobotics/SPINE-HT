@@ -70,20 +70,20 @@ def generate_launch_description():
     #     )
 
 
-    ld.append(
-        ExecuteProcess(
-            cmd=[
-                "ros2",
-                "bag",
-                "record",
-                "-d", "60",
-                "-a",
-                "-o",
-                get_log_dir(),
-            ],
-            output="screen",
-        )
-    )
+    # ld.append(
+    #     ExecuteProcess(
+    #         cmd=[
+    #             "ros2",
+    #             "bag",
+    #             "record",
+    #             "-d", "60",
+    #             "-a",
+    #             "-o",
+    #             get_log_dir(),
+    #         ],
+    #         output="screen",
+    #     )
+    # )
 
     return LaunchDescription(ld)
 
