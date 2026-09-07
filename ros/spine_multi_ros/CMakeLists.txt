@@ -35,7 +35,7 @@ install(PROGRAMS
   scripts/nav_service_translator.py
   scripts/vlm_service_translator.py
   scripts/label_service_translator.py
-  scripts/jackal_autonomy_server.py
+  scripts/clearpath_autonomy_server.py
   scripts/spot_autonomy_server.py
   scripts/goto_nav2.py
   scripts/convert_vel_to_joy.py

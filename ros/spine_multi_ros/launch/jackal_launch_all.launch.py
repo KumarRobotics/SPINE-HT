@@ -54,7 +54,7 @@ def generate_launch_description():
         description="which camera transform to use",
     )
     declare_use_mocha_arg = DeclareLaunchArgument(
-        "use_mocha", default_value="false", description="use mocha"
+        "use_mocha", default_value="true", description="use mocha"
     )
     declare_start_y_arg = DeclareLaunchArgument(
         "start_y", default_value="0.0", description="starting y"
@@ -88,8 +88,8 @@ def generate_launch_description():
     nav2_config_name = ["nav2_jackal_stvox.yaml"]
 
     nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", nav2_config_name])
-    jackal_static_transforms = PathJoinSubstitution(
-        [pkg_spine_multi, "launch", "jackal_static_transforms.launch.py"]
+    clearpath_static_transforms = PathJoinSubstitution(
+        [pkg_spine_multi, "launch", "clearpath_static_transforms.launch.py"]
     )
 
     vision_pkg = get_package_share_directory("vision_ros2")
@@ -113,14 +113,13 @@ def generate_launch_description():
                     ("z_threshold", ground_grid_z_threshold),
                 ],
             ),
-            # PushRosNamespace(LaunchConfiguration("namespace")),
             IncludeLaunchDescription(
-                jackal_static_transforms,
+                clearpath_static_transforms,
                 launch_arguments=[
                     # ("use_sim_time", use_sim_time),
                     ("robot_map_frame", robot_map_frame),
                     ("start_y", start_y),
-                    ("start_x", start_x)
+                    ("start_x", start_x),
                 ],
             ),
             Node(
@@ -150,27 +149,10 @@ def generate_launch_description():
                 launch_vision,
                 launch_arguments=[("config_file", vision_config)],
             ),
-            # Node(
-            #     package="spine_multi_ros",  # Replace with your package name
-            #     executable="twist_converter.py",
-            #     name="twist_converter",
-            #     remappings=[("cmd_vel", "autonomous/cmd_vel")],  # Remap output
-            #     parameters=[{"scale_x": 4.0},
-            #                 {"scale_z": 4.0}]
-            # ),
-            # Node(
-            #     package="safety_controller",
-            #     executable="safety_controller",
-            #     name="safety_controller",
-            #     remappings=[
-            #         ("joy_teleop/joy", [robot_name, "/joy_teleop/joy"]),
-            #         ("auto_mode/cmd_vel", [robot_name, "/auto_mode/cmd_vel"])
-            #     ]
-            # ),
             Node(
                 package="spine_multi_ros",
-                executable="jackal_autonomy_server.py",
-                name="jackal_autonomy_server",
+                executable="clearpath_autonomy_server.py",
+                name="clearpath_autonomy_server",
                 parameters=[{"subscription_prefix": subscription_prefix}],
             ),
             Node(
@@ -209,8 +191,6 @@ def generate_launch_description():
         namespaced_group,
     ]
 
-    # TODO clean up
-
     record_launch_path = PathJoinSubstitution(
         [pkg_spine_multi, "launch", "record_jackal.launch.py"]
     )
@@ -241,8 +221,6 @@ def get_log_dir() -> str:
     log_dir.mkdir(exist_ok=True, parents=True)
 
     n_bags = len(list(log_dir.glob("*")))
-    bag_name = str(
-        log_dir
-        / f"{n_bags:03d}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
-    )
+    datetime_now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    bag_name = str(log_dir / f"{n_bags:03d}_spine-multi-{datetime_now_str}")
     return bag_name

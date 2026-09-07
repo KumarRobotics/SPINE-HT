@@ -1,31 +1,24 @@
 #!/usr/bin/env python3
 
-from ament_index_python.packages import get_package_share_directory
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch import LaunchDescription
-from launch.conditions import IfCondition
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, PushRosNamespace, SetRemap
-from launch_ros.substitutions import FindPackageShare
-
-
-
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node, SetRemap
 
 
 def generate_launch_description():
-    # declare args
     declare_robot_namespace_arg = DeclareLaunchArgument(
         "namespace",
         default_value="",
         description="Namespace for the robot (empty for no namespace)",
     )
     declare_robot_name_arg = DeclareLaunchArgument(
-        "robot_name",
-        default_value="",
-        description="robot name"
+        "robot_name", default_value="", description="robot name"
     )
     declare_subscription_prefix_arg = DeclareLaunchArgument(
         "subscription_prefix",
@@ -40,10 +33,14 @@ def generate_launch_description():
         "detection_confidence", default_value="0.3", description="detection confidence"
     )
     declare_tracker_number_arg = DeclareLaunchArgument(
-        "tracker_n_dets", default_value="5", description="number of detections for a valid track"
+        "tracker_n_dets",
+        default_value="5",
+        description="number of detections for a valid track",
     )
     declare_model_choice_arg = DeclareLaunchArgument(
-        "model_choice", default_value="large", description="Model choice for Florence (base or large)"
+        "model_choice",
+        default_value="large",
+        description="Model choice for Florence (base or large)",
     )
     declare_camera_transform_arg = DeclareLaunchArgument(
         "camera_transform",
@@ -51,7 +48,7 @@ def generate_launch_description():
         description="which camera transform to use",
     )
     declare_use_mocha_arg = DeclareLaunchArgument(
-        "use_mocha", default_value="false", description="use mocha"
+        "use_mocha", default_value="true", description="use mocha"
     )
     declare_scale_depth_arg = DeclareLaunchArgument(
         "scale_depth", default_value="True", description="scale depth images"
@@ -62,8 +59,6 @@ def generate_launch_description():
     declare_start_x_arg = DeclareLaunchArgument(
         "start_x", default_value="0.0", description="starting y"
     )
-
-
 
     # args for launching
     namespace = LaunchConfiguration("namespace")
@@ -86,7 +81,7 @@ def generate_launch_description():
     )
     vision_pkg = get_package_share_directory("vision_ros2")
     launch_vision = PathJoinSubstitution(
-        [vision_pkg, "launch", "vision_jackal.launch.py"]
+        [vision_pkg, "launch", "vision_clearpath.launch.py"]
     )
     spot_client_pkg = get_package_share_directory("spot_client_ros")
     spot_camera_launch = PathJoinSubstitution(
@@ -95,41 +90,19 @@ def generate_launch_description():
 
     robot_map_frame = ["map_", robot_name]
 
-
-    # zed_launch = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource([
-    #         PathJoinSubstitution([
-    #             FindPackageShare('zed_wrapper'),
-    #             'launch',
-    #             'zed_camera.launch.py'
-    #         ])
-    #     ]),
-    #     launch_arguments={
-    #         'camera_model': 'zed2i',
-    #         'publish_tf': 'false',
-    #         'publish_map_tf': 'false',
-    #         'namespace': namespace
-    #     }.items()
-    # )
- 
-
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
-            #PushRosNamespace(LaunchConfiguration("namespace")),
-             SetRemap(src="/dlio/odom_node/odom", dst="/odom"),  
-             IncludeLaunchDescription(
-                 jackal_static_transforms,
-                 launch_arguments=[
-                     # ("use_sim_time", use_sim_time),
-                     ("robot_map_frame", robot_map_frame),
-                     ("start_y", start_y),
-                     ("start_x", start_x)
-                 ],
-            ),
+            SetRemap(src="/dlio/odom_node/odom", dst="/odom"),
             IncludeLaunchDescription(
-                spot_camera_launch
+                jackal_static_transforms,
+                launch_arguments=[
+                    ("robot_map_frame", robot_map_frame),
+                    ("start_y", start_y),
+                    ("start_x", start_x),
+                ],
             ),
+            IncludeLaunchDescription(spot_camera_launch),
             IncludeLaunchDescription(
                 launch_vision,
                 launch_arguments=[
@@ -149,8 +122,8 @@ def generate_launch_description():
                 package="spine_multi_ros",
                 executable="spot_autonomy_server.py",
                 name="spot_autonomy_server",
-                parameters=[{"subscription_prefix": subscription_prefix}]
-            )
+                parameters=[{"subscription_prefix": subscription_prefix}],
+            ),
         ],
     )
 
@@ -177,42 +150,28 @@ def generate_launch_description():
     launch_record = IncludeLaunchDescription(
         record_launch_path,
         condition=IfCondition(record),
-        launch_arguments=[
-            ("namespace", namespace), 
-            ("output_bag", bag_name)
-        ]
+        launch_arguments=[("namespace", namespace), ("output_bag", bag_name)],
     )
     launch_process.append(launch_record)
 
     pkg_mocha = get_package_share_directory("mocha_launch")
-    mocha_launch_path = PathJoinSubstitution(
-        [pkg_mocha, "launch", "jackal.launch.py"]
-    )
+    mocha_launch_path = PathJoinSubstitution([pkg_mocha, "launch", "jackal.launch.py"])
 
     mocha_launch = IncludeLaunchDescription(
-            mocha_launch_path,
-            condition=IfCondition(use_mocha),
-            launch_arguments=[
-                ("robot_name", robot_name)
-            ],
-        )
+        mocha_launch_path,
+        condition=IfCondition(use_mocha),
+        launch_arguments=[("robot_name", robot_name)],
+    )
 
     launch_process.append(mocha_launch)
- 
-
 
     return LaunchDescription(launch_process)
 
 
-
 def get_log_dir(user: str) -> str:
-    # TODO tmp hardcode due to docker root requirements
-    log_dir =  Path(f"/home/{user}/data/bags")
+    log_dir = Path(f"/home/{user}/data/bags")
     log_dir.mkdir(exist_ok=True, parents=True)
-
     n_bags = len(list(log_dir.glob("*")))
-    bag_name = str(
-        log_dir / f"{n_bags:03d}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
-    )
+    datetime_now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    bag_name = str(log_dir / f"{n_bags:03d}_spine-multi-{datetime_now_str}")
     return bag_name
-

@@ -3,8 +3,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node, PushRosNamespace
-from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -22,7 +21,6 @@ def generate_launch_description():
     start_x_arg = DeclareLaunchArgument(
         "start_x", default_value="0.0", description="Name for the robot"
     )
-
 
     robot_map_frame = LaunchConfiguration("robot_map_frame")
     start_y = LaunchConfiguration("start_y")
@@ -50,7 +48,7 @@ def generate_launch_description():
                     "--frame-id",
                     "map",
                     "--child-frame-id",
-                    robot_map_frame
+                    robot_map_frame,
                 ],
             ),
             Node(
@@ -101,5 +99,11 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        [robot_map_frame_arg, start_y_arg, start_x_arg, use_sim_time_arg, namespaced_group]
+        [
+            robot_map_frame_arg,
+            start_y_arg,
+            start_x_arg,
+            use_sim_time_arg,
+            namespaced_group,
+        ]
     )

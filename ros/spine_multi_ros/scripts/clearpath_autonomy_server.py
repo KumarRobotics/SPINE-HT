@@ -564,7 +564,6 @@ class JackalNavigationComponent:
         timeout_sec: Optional[float | None] = None,
         check_yaw: Optional[bool] = False,
     ) -> Tuple[bool, str]:
-
         if self._use_utm:
             x, y, yaw = self.get_local_goal(x, y, yaw)
             self._parent_node.get_logger().info(
@@ -757,7 +756,6 @@ class VLMServiceComponent:
         parent_node: JackalAutonomyManager,
         vlm_service: str = "vlm_node/query_scene",
     ):
-
         self._prarent_node = parent_node
 
         vlm_cbk_group = ReentrantCallbackGroup()

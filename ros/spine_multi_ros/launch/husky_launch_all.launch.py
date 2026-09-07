@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+from pathlib import Path
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.conditions import IfCondition
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node, PushRosNamespace
-
-from pathlib import Path
-from datetime import datetime
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -19,9 +19,7 @@ def generate_launch_description():
         description="Namespace for the robot (empty for no namespace)",
     )
     declare_robot_name_arg = DeclareLaunchArgument(
-        "robot_name",
-        default_value="",
-        description="robot name"
+        "robot_name", default_value="", description="robot name"
     )
     declare_subscription_prefix_arg = DeclareLaunchArgument(
         "subscription_prefix",
@@ -43,11 +41,6 @@ def generate_launch_description():
     declare_start_y_arg = DeclareLaunchArgument(
         "start_y", default_value="0.0", description="starting y"
     )
-    declare_use_vision_arg = DeclareLaunchArgument(
-        "use_vision", default_value="false", description="starting y"
-    )
-
-
 
     # args for launching
     namespace = LaunchConfiguration("namespace")
@@ -69,18 +62,13 @@ def generate_launch_description():
     nav2_config_name = ["nav2_husky.yaml"]
 
     nav2_config = PathJoinSubstitution([pkg_spine_multi, "config", nav2_config_name])
-    jackal_static_transforms = PathJoinSubstitution(
-        [pkg_spine_multi, "launch", "jackal_static_transforms.launch.py"]
+    clearpath_static_transforms = PathJoinSubstitution(
+        [pkg_spine_multi, "launch", "clearpath_static_transforms.launch.py"]
     )
 
     vision_pkg = get_package_share_directory("vision_ros2")
     launch_vision = PathJoinSubstitution(
-        [vision_pkg, "launch", "vision_jackal.launch.py"]
-    )
-
-    groundgrid_pkg = get_package_share_directory("groundgrid")
-    launch_groundgrid = PathJoinSubstitution(
-        [groundgrid_pkg, "launch", "ground_grid.launch.py"]
+        [vision_pkg, "launch", "vision_clearpath.launch.py"]
     )
 
     robot_map_frame = ["map_", robot_name]
@@ -88,20 +76,23 @@ def generate_launch_description():
     # launch everything in a namespace
     namespaced_group = GroupAction(
         actions=[
-            #PushRosNamespace(LaunchConfiguration("namespace")),
             IncludeLaunchDescription(
-                jackal_static_transforms,
+                clearpath_static_transforms,
                 launch_arguments=[
-                    # ("use_sim_time", use_sim_time),
                     ("robot_map_frame", robot_map_frame),
-                    ("start_y", start_y)
+                    ("start_y", start_y),
                 ],
             ),
             Node(
                 package="topic_tools",
                 executable="throttle",
-                name=f"throttle_costmap",
-                arguments=["messages", "/local_costmap/costmap", "0.1", "/local_costmap/costmap_throttled" ],
+                name="throttle_costmap",
+                arguments=[
+                    "messages",
+                    "/local_costmap/costmap",
+                    "0.1",
+                    "/local_costmap/costmap_throttled",
+                ],
                 output="screen",
             ),
             IncludeLaunchDescription(
@@ -122,17 +113,17 @@ def generate_launch_description():
                 remappings=[
                     ("joy_teleop/joy", "/a200_0000/joy_teleop/joy"),
                     ("autonomous/cmd_vel", "autonomous/cmd_vel"),
-                     ("auto_mode/cmd_vel", "/a200_0000/auto_mode/cmd_vel"),
-                    
-                ]
+                    ("auto_mode/cmd_vel", "/a200_0000/auto_mode/cmd_vel"),
+                ],
             ),
             Node(
                 package="spine_multi_ros",  # Replace with your package name
                 executable="twist_converter.py",
                 name="twist_converter",
                 remappings=[("cmd_vel", "/autonomous/cmd_vel")],  # Remap output
-                parameters=[{"flip_x": True},
-                            ], 
+                parameters=[
+                    {"flip_x": True},
+                ],
             ),
             IncludeLaunchDescription(
                 launch_vision,
@@ -146,11 +137,15 @@ def generate_launch_description():
             ),
             Node(
                 package="spine_multi_ros",
-                executable="jackal_autonomy_server.py",
-                name="jackal_autonomy_server",
-                parameters=[{"subscription_prefix": subscription_prefix,
-                            "use_vision": use_vision}]
-            )
+                executable="clearpath_autonomy_server.py",
+                name="clearpath_autonomy_server",
+                parameters=[
+                    {
+                        "subscription_prefix": subscription_prefix,
+                        "use_vision": use_vision,
+                    }
+                ],
+            ),
         ],
     )
 
@@ -173,32 +168,22 @@ def generate_launch_description():
     launch_record = IncludeLaunchDescription(
         record_launch_path,
         condition=IfCondition(record),
-        launch_arguments=[
-            ("namespace", "triton"), 
-            ("output_bag", bag_name)
-        ]
+        launch_arguments=[("namespace", "triton"), ("output_bag", bag_name)],
     )
     launch_process.append(launch_record)
 
     pkg_mocha = get_package_share_directory("mocha_launch")
-    mocha_launch_path = PathJoinSubstitution(
-        [pkg_mocha, "launch", "jackal.launch.py"]
-    )
+    mocha_launch_path = PathJoinSubstitution([pkg_mocha, "launch", "jackal.launch.py"])
 
     mocha_launch = IncludeLaunchDescription(
-            mocha_launch_path,
-            condition=IfCondition(use_mocha),
-            launch_arguments=[
-                ("robot_name", robot_name)
-            ],
-        )
+        mocha_launch_path,
+        condition=IfCondition(use_mocha),
+        launch_arguments=[("robot_name", robot_name)],
+    )
 
     launch_process.append(mocha_launch)
- 
-
 
     return LaunchDescription(launch_process)
-
 
 
 def get_log_dir() -> str:
@@ -206,8 +191,6 @@ def get_log_dir() -> str:
     log_dir.mkdir(exist_ok=True, parents=True)
 
     n_bags = len(list(log_dir.glob("*")))
-    bag_name = str(
-        log_dir / f"{n_bags:03d}_spine-multi-{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
-    )
+    datetime_now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    bag_name = str(log_dir / f"{n_bags:03d}_spine-multi-{datetime_now_str}")
     return bag_name
-
