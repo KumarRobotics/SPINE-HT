@@ -53,7 +53,7 @@ Note that this repo must be installed on both your basestation, which runs the S
 
 ### Coordinator
 
-`multi_spine.launch.py` is the top-level entry point, typically run on the basestation.
+`spine_ht.launch.py` is the top-level entry point, typically run on the basestation.
 It brings up the `spine_ht_node`, which reads a per-robot config
 (`robot_config`, a `spine_ht.yaml`) and optionally starts the `mocha` basestation
 comms stack (`use_mocha`).
