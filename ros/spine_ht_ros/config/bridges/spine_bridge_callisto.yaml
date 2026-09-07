@@ -1,0 +1,36 @@
+name: spine_bridge
+from_domain: 2
+to_domain: 13
+topics:
+  j100_0002/local_costmap/costmap:
+    type: nav_msgs/msg/OccupancyGrid
+    from_domain: 2
+    to_domain: 13
+  j100_0002/grounding_dino_node/tracks:
+    type: teaming_msgs/msg/Track
+    from_domain: 2
+    to_domain: 13
+  j100_0002/navigation_status:
+    type: teaming_msgs/msg/GoalStatus
+    from_domain: 2
+    to_domain: 13
+  j100_0002/vlm_response:
+    type: teaming_msgs/msg/VLMResponse
+    from_domain: 2
+    to_domain: 13
+  j100_0002/navigation_request:
+    type: teaming_msgs/msg/GoalRequest
+    from_domain: 13
+    to_domain: 2
+  j100_0002/navigation_ack:
+    type: std_msgs/msg/Int16
+    from_domain: 13
+    to_domain: 2
+  j100_0002/vlm_request:
+    type: teaming_msgs/msg/VLMRequest
+    from_domain: 13
+    to_domain: 2
+  j100_0002/vlm_ack:
+    type: std_msgs/msg/Int16
+    from_domain: 13
+    to_domain: 2

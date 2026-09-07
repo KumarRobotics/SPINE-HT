@@ -1,0 +1,70 @@
+spine_ht_node:
+  ros__parameters:
+    namespace: ""
+    planning_limit_idx: 5
+    team_specification: "You have one boston dynamics spot, one clearpath husky, one clearpath jackal, and one high-altitude UAV. The jackal is equipped with a strong radio"
+    init_graph:  /home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_uav.json
+    # example spec: pickup the delivery
+    # I got reports of damage near (45, 45) and terrain_1. Establish comms in a central location, concurrently map and report findings. Use the spot to map uav-discovered areas.
+    init_location: ground_1
+    llm: gpt4
+    robots:
+      robot1:
+        name: spot_1
+        type: spot
+        namespace: /apollo
+        subscription_prefix: ""
+        init_location: ground_1
+        nav_target_frame: map
+        graph_viz_topic: /apollo/graph_viz
+        track_topic: /apollo/grounding_dino_node/tracks
+        local_costmap_topic: /apollo/local_costmap/costmap_throttled
+        behavior_request_pub: "/to_apollo/behavior_request"
+        behavior_request_ack_sub: "/apollo/behavior_request_ack"
+        behavior_result_sub: "/apollo/behavior_result"
+        behavior_result_ack_pub: "/to_apollo/behavior_result_ack"
+
+      robot2:
+        name: jackal_1
+        type: jackal
+        namespace: /callisto
+        subscription_prefix: ""
+        init_location: ground_1
+        nav_target_frame: map
+        graph_viz_topic: /callisto/graph_viz
+        track_topic: /callisto/grounding_dino_node/tracks
+        local_costmap_topic: /callisto/local_costmap/costmap_throttled
+        behavior_request_pub: "/to_callisto/behavior_request"
+        behavior_request_ack_sub: "/callisto/behavior_request_ack"
+        behavior_result_sub: "/callisto/behavior_result"
+        behavior_result_ack_pub: "/to_callisto/behavior_result_ack"
+
+      robot3:
+        name: husky_1
+        type: husky
+        namespace: /triton
+        subscription_prefix: ""
+        init_location: ground_1
+        nav_target_frame: map
+        graph_viz_topic: /triton/graph_viz
+        track_topic: /triton/grounding_dino_node/tracks
+        local_costmap_topic: /triton/local_costmap/costmap_throttled
+        behavior_request_pub: "/to_triton/behavior_request"
+        behavior_request_ack_sub: "/triton/behavior_request_ack"
+        behavior_result_sub: "/triton/behavior_result"
+        behavior_result_ack_pub: "/to_triton/behavior_result_ack"
+
+      robot4:
+        name: titan_1
+        type: uav
+        namespace: /titan
+        subscription_prefix: ""
+        init_location: ground_1
+        nav_target_frame: map
+        graph_viz_topic: /titan/graph_viz
+        track_topic: /titan/grounding_dino_node/tracks
+        local_costmap_topic: /titan/local_costmap/costmap_throttled
+        behavior_request_pub: "/to_titan/behavior_request"
+        behavior_request_ack_sub: "/titan/behavior_request_ack"
+        behavior_result_sub: "/titan/behavior_result"
+        behavior_result_ack_pub: "/to_titan/behavior_result_ack"

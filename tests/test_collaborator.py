@@ -1,21 +1,19 @@
-from spine_multi.collaborator import (
-    Collaborator,
-    RobotDescription,
-    RobotConfig,
-    JACKAL_CAPABILITIES,
-    get_capability_set,
-)
-from spine_multi.planner_logging import get_logger
-from spine_multi.spine.mapping.graph_util import GraphHandler
-import numpy as np
-
-from typing import Dict, List, Any
+import os
 from collections import defaultdict, namedtuple
+from typing import Any, Dict, List
+
+import numpy as np
+import pytest
 import yaml
 
-import pytest
-
-import os
+from spine_ht.collaborator import (
+    Collaborator,
+    RobotConfig,
+    RobotDescription,
+    get_capability_set,
+)
+from spine_ht.planner_logging import get_logger
+from spine_ht.spine.mapping.graph_util import GraphHandler
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -29,7 +27,6 @@ def parse_robot_config(param_dict: Dict[str, Any]) -> List[RobotConfig]:
     tmp_robot_config = defaultdict(dict)
 
     for param_name, param_obj in param_dict.items():
-
         robot_name, param_name = param_name.split(".")
 
         tmp_robot_config[robot_name][param_name] = param_obj.value
@@ -45,7 +42,7 @@ def parse_yaml(yaml_file: str) -> TestConfig:
     with open(yaml_file) as f:
         as_dict = yaml.safe_load(f)
 
-    config_dict = as_dict["spine_multi_node"]["ros__parameters"]
+    config_dict = as_dict["spine_ht_node"]["ros__parameters"]
 
     # replicate ROS2 format
     formatted_robot_dict = {}
@@ -66,7 +63,6 @@ def parse_yaml(yaml_file: str) -> TestConfig:
 def init_collaborator(
     config_path: str, graph_path: str, team_specification="", llm_type="gpt4"
 ) -> Collaborator:
-
     spine_mult_config = parse_yaml(config_path)
 
     robot_configs = spine_mult_config.robot_configs
@@ -124,85 +120,85 @@ LLM = "gpt4"
     [
         # fmt: off
         # (
-        #     SCRIPT_DIR + "/data/configs/spine_multi_single.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/tests/data/maps/pennov_back_construction.json",
+        #     SCRIPT_DIR + "/data/configs/spine_ht_single.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/tests/data/maps/pennov_back_construction.json",
         #     "inspect construction area 1",
         #     "",
         #     LLM
         # ),
         # (
-        #     SCRIPT_DIR + "/data/configs/spine_multi.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/tests/data/maps/pennov_back_construction.json",
+        #     SCRIPT_DIR + "/data/configs/spine_ht.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/tests/data/maps/pennov_back_construction.json",
         #     "Verify the workzones are clear",
         #     "",
         #     LLM
         # ),
         # (
-        #     SCRIPT_DIR + "/data/configs/spine_multi.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/tests/data/maps/pennov_back_parking.json",
+        #     SCRIPT_DIR + "/data/configs/spine_ht.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/tests/data/maps/pennov_back_parking.json",
         #     "Lead our visitors to their cars. They are parked in different areas.",
         #     "",
         #     LLM
         # ),
         # (
-        #     SCRIPT_DIR + "/data/configs/spine_multi.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/tests/data/maps/pennov_back_delivery.json",
+        #     SCRIPT_DIR + "/data/configs/spine_ht.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/tests/data/maps/pennov_back_delivery.json",
         #     "Pickup the delivery and watch for oncoming traffic",
         #     "You have two clearpath jacakls. jackal_2  has a larger payload capacity.",
         #     LLM
         # ),
         # (
-        #     SCRIPT_DIR + "/data/configs/spine_multi.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/tests/data/maps/pennov_back_delivery.json",
+        #     SCRIPT_DIR + "/data/configs/spine_ht.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/tests/data/maps/pennov_back_delivery.json",
         #     "I need status on the northmost part of the scene, but that is likely out of communciation range.",
         #     "You have two clearpath jacakls. jackal_2 has good communication relay radios",
         #     LLM
         # ),
-        # (  
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_jackal.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_delivery.json",
+        # (
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_jackal.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_delivery.json",
         #     "Pickup the delivery and watch for oncoming traffic",
         #     "You have two robots: one boston dyanmics spot and one clearpath jackal. The spot is fast and can explore. Jackal is slower but can map and monitor.",
         #     LLM
         # ),
         # ( # TODO look at this
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_two_jackals.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_delivery.json",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_two_jackals.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_delivery.json",
         #     "Pickup the delivery and watch for oncoming traffic. Ensure network connectivity",
         #     "You have three robots: one boston dyanmics spot and two clearpath jackals. The spot is fast and can explore. Jackal 1 has a strong radio.",
         #     LLM
         # ),
         # ( # TODO look at this
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_husky_jackal.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_triage.json",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_husky_jackal.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_triage.json",
         #     "There was a storm. Inspect logistics infrastructure.",
         #     "You have three robots: a boston dyanmics spot, a clearpath husky, and a clearpath jackal. The spot is fast and can explore. The husky can navigate over rugged terrain",
         #     LLM
         # ),
         # ( # TODO look at this
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_husky_jackal.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_triage.json",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_husky_jackal.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_triage.json",
         #     "There was a storm. First, ensure network connectivity throughout the scene by positioning a communication node. Once complete, inspect logistics infrastructure with other robots. ",
         #     "You have three robots: a boston dyanmics spot, a clearpath husky, and a clearpath jackal. The spot is fast and can explore. The husky can navigate over rugged terrain. Jackal_1 has a good communcation radio",
         #     LLM
         # ),
         # ( # TODO look at this
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_husky_jackal.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_triage.json",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_husky_jackal.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_triage.json",
         #     "There was a storm. First, ensure network connectivity by positioning a central communication node. Once complete, inspect logistics infrastructure with other robots. After initial results, robots should offload data",
         #     "You have three robots: a boston dyanmics spot, a clearpath husky, and a clearpath jackal. The spot is fast and can explore. The husky can navigate over rugged terrain. Jackal_1 has a good communcation radio",
         #     LLM
         # ),
         # ( # TODO look at this
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_husky.yaml",
-        #     "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_triage.json",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_husky.yaml",
+        #     "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_triage.json",
         #     "There was a storm. Is key infrastructure damaged?.",
         #     "You have one boston dynamics spot and one clearpath husky. The Spot is fast and the husky can traverse rugged terrain.",
         #     LLM
         # ),
-        ( # TODO look at this
-            "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/config/spine_configs/spine_multi_spot_husky.yaml",
-            "/home/zacravi/projects/dcist/src/spine-multi/ros/spine_multi_ros/data/maps/pennov_back_triage_partial.json",
+        (  # TODO look at this
+            "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/config/spine_configs/spine_ht_spot_husky.yaml",
+            "/home/zacravi/projects/dcist/src/spine-ht/ros/spine_ht_ros/data/maps/pennov_back_triage_partial.json",
             "There was a storm. Is key infrastructure damaged?.",
             "You have one boston dynamics spot and one clearpath husky. The Spot is fast and the husky can traverse rugged terrain.",
             LLM
@@ -222,8 +218,8 @@ def test_goto(config_path, graph_path, specification, team_specification, llm):
 
 if __name__ == "__main__":
     inputs = (
-        SCRIPT_DIR + "/data/configs/spine_multi_single.yaml",
-        "/home/zacravi/projects/dcist/src/spine-multi/tests/data/maps/pennov_back_construction.json",
+        SCRIPT_DIR + "/data/configs/spine_ht_single.yaml",
+        "/home/zacravi/projects/dcist/src/spine-ht/tests/data/maps/pennov_back_construction.json",
         "inspect construction area 1",
         "",
     )
